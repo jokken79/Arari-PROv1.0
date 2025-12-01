@@ -9,13 +9,13 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  File,
   X,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
+import { uploadApi } from '@/lib/api'
 
 interface UploadedFileInfo {
   id: string
@@ -30,59 +30,77 @@ interface UploadedFileInfo {
 export function FileUploader() {
   const [files, setFiles] = useState<UploadedFileInfo[]>([])
 
+  const uploadFile = async (file: File, fileId: string) => {
+    // Update to processing status
+    setFiles(prev =>
+      prev.map(f =>
+        f.id === fileId ? { ...f, status: 'processing' as const, progress: 100 } : f
+      )
+    )
+
+    // Upload to backend
+    const result = await uploadApi.uploadFile(file)
+
+    if (result.data) {
+      setFiles(prev =>
+        prev.map(f =>
+          f.id === fileId
+            ? {
+                ...f,
+                status: 'success' as const,
+                records: result.data.saved_records,
+              }
+            : f
+        )
+      )
+    } else {
+      setFiles(prev =>
+        prev.map(f =>
+          f.id === fileId
+            ? {
+                ...f,
+                status: 'error' as const,
+                error: result.error || 'アップロードに失敗しました',
+              }
+            : f
+        )
+      )
+    }
+  }
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map(file => ({
-      id: Math.random().toString(36).substr(2, 9),
-      name: file.name,
-      size: file.size,
-      status: 'uploading' as const,
-      progress: 0,
-    }))
+    acceptedFiles.forEach(file => {
+      const fileId = Math.random().toString(36).substr(2, 9)
 
-    setFiles(prev => [...prev, ...newFiles])
+      // Add file to list
+      setFiles(prev => [
+        ...prev,
+        {
+          id: fileId,
+          name: file.name,
+          size: file.size,
+          status: 'uploading' as const,
+          progress: 0,
+        },
+      ])
 
-    // Simulate upload and processing
-    newFiles.forEach(fileInfo => {
-      simulateUpload(fileInfo.id)
+      // Simulate upload progress then actually upload
+      let progress = 0
+      const interval = setInterval(() => {
+        progress += Math.random() * 20
+        if (progress >= 100) {
+          progress = 100
+          clearInterval(interval)
+          // Actually upload the file
+          uploadFile(file, fileId)
+        } else {
+          setFiles(prev =>
+            prev.map(f => (f.id === fileId ? { ...f, progress } : f))
+          )
+        }
+      }, 150)
     })
   }, [])
-
-  const simulateUpload = (fileId: string) => {
-    let progress = 0
-    const interval = setInterval(() => {
-      progress += Math.random() * 15
-      if (progress >= 100) {
-        progress = 100
-        clearInterval(interval)
-        setFiles(prev =>
-          prev.map(f =>
-            f.id === fileId ? { ...f, status: 'processing', progress: 100 } : f
-          )
-        )
-
-        // Simulate processing
-        setTimeout(() => {
-          const success = Math.random() > 0.2
-          setFiles(prev =>
-            prev.map(f =>
-              f.id === fileId
-                ? {
-                    ...f,
-                    status: success ? 'success' : 'error',
-                    records: success ? Math.floor(Math.random() * 50) + 10 : undefined,
-                    error: success ? undefined : 'ファイル形式が正しくありません',
-                  }
-                : f
-            )
-          )
-        }, 1500)
-      } else {
-        setFiles(prev =>
-          prev.map(f => (f.id === fileId ? { ...f, progress } : f))
-        )
-      }
-    }, 200)
-  }
 
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId))
@@ -218,14 +236,14 @@ export function FileUploader() {
                             <p className="text-xs text-muted-foreground">
                               {file.status === 'uploading'
                                 ? `アップロード中... ${file.progress.toFixed(0)}%`
-                                : '処理中...'}
+                                : 'データを処理中...'}
                             </p>
                           </div>
                         )}
 
                         {file.status === 'success' && (
                           <p className="text-sm text-emerald-500">
-                            {file.records}件のレコードを読み込みました
+                            ✓ {file.records}件のレコードをデータベースに保存しました
                           </p>
                         )}
 
@@ -263,40 +281,32 @@ export function FileUploader() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-primary" />
-                  社員番号 (employee_id)
+                  社員番号 (従業員番号, ID)
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-primary" />
-                  対象期間 (period) - 例: 2025年1月
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary" />
-                  基本給 (base_salary)
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary" />
-                  社会保険料 (social_insurance)
+                  対象期間 (期間, 月) - 例: 2025年1月
                 </li>
               </ul>
             </div>
             <div className="space-y-3">
-              <h4 className="font-medium">オプション項目</h4>
+              <h4 className="font-medium">認識される項目</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                  残業時間 (overtime_hours)
+                  基本給, 残業時間, 残業代
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                  有給日数 (paid_leave_days)
+                  社会保険料, 雇用保険料
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                  通勤費 (transport_allowance)
+                  有給日数, 有給時間
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                  請求金額 (billing_amount)
+                  通勤費, 請求金額, 売上
                 </li>
               </ul>
             </div>
