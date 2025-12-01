@@ -472,7 +472,7 @@ class ExcelParser:
         """Parse file content and return list of PayrollRecordCreate objects"""
         if file_ext == '.csv':
             return self._parse_csv(content)
-        elif file_ext in ['.xlsx', '.xls']:
+        elif file_ext in ['.xlsx', '.xlsm', '.xls']:
             return self._parse_excel(content)
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")

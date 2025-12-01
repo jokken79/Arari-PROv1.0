@@ -166,7 +166,7 @@ async def upload_payroll_file(
 ):
     """Upload and parse a payroll file (Excel or CSV)"""
     # Validate file type
-    allowed_extensions = ['.xlsx', '.xls', '.csv']
+    allowed_extensions = ['.xlsx', '.xlsm', '.xls', '.csv']
     file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
 
     if file_ext not in allowed_extensions:

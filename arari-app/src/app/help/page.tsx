@@ -54,7 +54,7 @@ const faqs = [
   {
     question: 'ファイルのアップロード形式は？',
     answer: `以下の形式に対応しています：
-- Excel (.xlsx, .xls)
+- Excel (.xlsx, .xlsm, .xls)
 - CSV (.csv)
 
 必須項目：

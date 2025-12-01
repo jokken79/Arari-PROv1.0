@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { uploadApi } from '@/lib/api'
+import { useAppStore } from '@/store/appStore'
 
 interface UploadedFileInfo {
   id: string
@@ -29,6 +30,7 @@ interface UploadedFileInfo {
 
 export function FileUploader() {
   const [files, setFiles] = useState<UploadedFileInfo[]>([])
+  const { refreshFromBackend } = useAppStore()
 
   const uploadFile = async (file: File, fileId: string) => {
     // Update to processing status
@@ -53,6 +55,8 @@ export function FileUploader() {
             : f
         )
       )
+      // Refresh data from backend after successful upload
+      await refreshFromBackend()
     } else {
       setFiles(prev =>
         prev.map(f =>
@@ -100,7 +104,8 @@ export function FileUploader() {
         }
       }, 150)
     })
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshFromBackend])
 
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId))
@@ -110,6 +115,7 @@ export function FileUploader() {
     onDrop,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
       'application/vnd.ms-excel': ['.xls'],
       'text/csv': ['.csv'],
     },
@@ -175,6 +181,7 @@ export function FileUploader() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>対応形式:</span>
                 <span className="px-2 py-1 rounded bg-muted">.xlsx</span>
+                <span className="px-2 py-1 rounded bg-muted">.xlsm</span>
                 <span className="px-2 py-1 rounded bg-muted">.xls</span>
                 <span className="px-2 py-1 rounded bg-muted">.csv</span>
               </div>
