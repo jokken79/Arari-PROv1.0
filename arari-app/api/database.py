@@ -99,10 +99,8 @@ def init_db():
 
     conn.commit()
 
-    # Insert sample data if database is empty
-    cursor.execute("SELECT COUNT(*) FROM employees")
-    if cursor.fetchone()[0] == 0:
-        insert_sample_data(conn)
+    # NO sample data - start with clean database
+    # Users will upload their own payroll files
 
     conn.close()
 
