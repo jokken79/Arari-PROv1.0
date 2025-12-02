@@ -38,10 +38,11 @@ async function fetchApi<T>(
 // ============== Employee API ==============
 
 export const employeeApi = {
-  getAll: async (search?: string, company?: string) => {
+  getAll: async (search?: string, company?: string, employeeType?: string) => {
     const params = new URLSearchParams()
     if (search) params.append('search', search)
     if (company) params.append('company', company)
+    if (employeeType) params.append('employee_type', employeeType)
     const query = params.toString() ? `?${params.toString()}` : ''
     return fetchApi<Employee[]>(`/api/employees${query}`)
   },
@@ -119,6 +120,29 @@ export const statisticsApi = {
   },
 }
 
+// ============== Sync API ==============
+
+export const syncApi = {
+  syncEmployees: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/sync-employees`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Sync failed' }))
+        throw new Error(error.detail || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      return { data }
+    } catch (error) {
+      console.error('Sync Error:', error)
+      return { error: error instanceof Error ? error.message : 'Sync failed' }
+    }
+  },
+}
+
 // ============== Upload API ==============
 
 export const uploadApi = {
@@ -159,6 +183,7 @@ export interface Employee {
   billing_rate: number
   status: string
   hire_date?: string
+  employee_type?: string
   created_at?: string
   updated_at?: string
   profit_per_hour?: number
@@ -287,5 +312,27 @@ export interface UploadResponse {
   filename: string
   total_records: number
   saved_records: number
+  skipped_count?: number
+  error_count?: number
+  skipped_details?: Array<{
+    employee_id: string
+    period: string
+    reason: string
+  }>
   errors?: string[]
+}
+
+export interface SyncResponse {
+  success: boolean
+  message: string
+  stats: {
+    haken_added: number
+    haken_updated: number
+    haken_errors: number
+    ukeoi_added: number
+    ukeoi_updated: number
+    ukeoi_errors: number
+    total_added: number
+    total_errors: number
+  }
 }

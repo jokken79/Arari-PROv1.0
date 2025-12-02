@@ -25,6 +25,8 @@ interface UploadedFileInfo {
   status: 'uploading' | 'processing' | 'success' | 'error'
   progress: number
   records?: number
+  skipped?: number
+  errorCount?: number
   error?: string
 }
 
@@ -51,6 +53,8 @@ export function FileUploader() {
                 ...f,
                 status: 'success' as const,
                 records: result.data.saved_records,
+                skipped: result.data.skipped_count || 0,
+                errorCount: result.data.error_count || 0,
               }
             : f
         )
@@ -249,9 +253,21 @@ export function FileUploader() {
                         )}
 
                         {file.status === 'success' && (
-                          <p className="text-sm text-emerald-500">
-                            ✓ {file.records}件のレコードをデータベースに保存しました
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-sm text-emerald-500">
+                              ✓ {file.records}件のレコードをデータベースに保存しました
+                            </p>
+                            {(file.skipped || 0) > 0 && (
+                              <p className="text-xs text-amber-500">
+                                ⚠ {file.skipped}件をスキップ (従業員が見つかりません)
+                              </p>
+                            )}
+                            {(file.errorCount || 0) > 0 && (
+                              <p className="text-xs text-red-500">
+                                ✕ {file.errorCount}件のエラー
+                              </p>
+                            )}
+                          </div>
                         )}
 
                         {file.status === 'error' && (

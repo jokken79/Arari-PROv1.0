@@ -11,7 +11,7 @@ import type {
   FilterOptions,
   Theme
 } from '@/types'
-import { sampleEmployees, samplePayrollRecords, generateDashboardStats } from '@/data/sampleData'
+// Sample data removed - always use backend
 import { employeeApi, payrollApi, statisticsApi } from '@/lib/api'
 
 interface AppState {
@@ -83,28 +83,33 @@ export const useAppStore = create<AppState>()(
       setIsLoading: (loading) => set({ isLoading: loading }),
 
       // Backend status
-      useBackend: false,
+      useBackend: true,
 
       // Actions
       loadSampleData: async () => {
-        // Try to load from backend first
+        // Load from backend only - no sample data fallback
         try {
           await get().loadDataFromBackend()
         } catch (error) {
-          console.log('Backend not available, using sample data')
-          // Fallback to sample data
-          const employees = sampleEmployees
-          const payrollRecords = samplePayrollRecords
-          const periods = Array.from(new Set(payrollRecords.map(r => r.period))).sort().reverse()
-          const selectedPeriod = periods[0] || '2025年1月'
-          const dashboardStats = generateDashboardStats(employees, payrollRecords)
-
+          console.error('Backend not available:', error)
+          // Show empty state with error - NO sample data fallback
           set({
-            employees,
-            payrollRecords,
-            availablePeriods: periods,
-            selectedPeriod,
-            dashboardStats,
+            employees: [],
+            payrollRecords: [],
+            availablePeriods: [],
+            selectedPeriod: '',
+            dashboardStats: {
+              totalEmployees: 0,
+              activeEmployees: 0,
+              totalRevenue: 0,
+              totalCost: 0,
+              totalProfit: 0,
+              averageMargin: 0,
+              monthlyTrend: [],
+              employeeTypeBreakdown: { haken: 0, ukeoi: 0 },
+              topPerformers: [],
+              companyBreakdown: [],
+            },
             useBackend: false,
           })
         }
@@ -140,6 +145,7 @@ export const useAppStore = create<AppState>()(
             department: emp.department || '',
             hourlyRate: emp.hourly_rate,
             billingRate: emp.billing_rate,
+            employeeType: (emp.employee_type as 'haken' | 'ukeoi' | undefined) || 'haken',
             status: emp.status as 'active' | 'inactive' | 'pending',
             hireDate: emp.hire_date || '',
             createdAt: emp.created_at || new Date().toISOString(),
@@ -312,12 +318,26 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'arari-pro-storage',
+      version: 5,
       partialize: (state) => ({
         theme: state.theme,
-        employees: state.employees,
-        payrollRecords: state.payrollRecords,
-        selectedPeriod: state.selectedPeriod,
+        useBackend: state.useBackend,
       }),
+      migrate: (persistedState: any, version: number) => {
+        // Always force reload of employees/payroll on version mismatch
+        // This clears cached data that may be stale or corrupted
+        if (version !== 5) {
+          return {
+            ...persistedState,
+            employees: [],
+            payrollRecords: [],
+            availablePeriods: [],
+            selectedPeriod: '',
+            useBackend: true,
+          }
+        }
+        return persistedState
+      },
     }
   )
 )

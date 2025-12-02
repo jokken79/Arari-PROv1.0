@@ -18,6 +18,7 @@ class EmployeeBase(BaseModel):
     billing_rate: float = Field(0, description="単価")
     status: str = Field("active", description="ステータス")
     hire_date: Optional[str] = Field(None, description="入社日")
+    employee_type: str = Field("haken", description="従業員タイプ (haken=派遣社員, ukeoi=請負社員)")
 
 class EmployeeCreate(EmployeeBase):
     pass
@@ -125,6 +126,9 @@ class UploadResponse(BaseModel):
     filename: str
     total_records: int
     saved_records: int
+    skipped_count: Optional[int] = None
+    error_count: Optional[int] = None
+    skipped_details: Optional[List[dict]] = None
     errors: Optional[List[str]] = None
 
 # ============== API Response Models ==============

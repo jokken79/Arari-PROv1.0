@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Moon, Sun, TrendingUp, Bell, Settings, User, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/ui/theme-provider'
+import { useAppStore } from '@/store/appStore'
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +18,10 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme, resolvedTheme } = useTheme()
+  const { payrollRecords } = useAppStore()
+
+  // Count unread/pending notifications - 0 if no payroll records
+  const notificationCount = payrollRecords.length > 0 ? 0 : 0
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
@@ -89,12 +94,16 @@ export function Header({ onMenuClick }: HeaderProps) {
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-                    3
-                  </span>
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold">
+                      {notificationCount > 99 ? '99+' : notificationCount}
+                    </span>
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>通知</TooltipContent>
+              <TooltipContent>
+                {notificationCount > 0 ? `${notificationCount}件の通知` : '通知なし'}
+              </TooltipContent>
             </Tooltip>
 
             {/* Theme Toggle */}

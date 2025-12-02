@@ -34,10 +34,31 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
   const [sortField, setSortField] = useState<SortField>('employeeId')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+  const [employeeTypeFilter, setEmployeeTypeFilter] = useState<'haken' | 'ukeoi' | 'all'>('haken')
+  const [showActiveOnly, setShowActiveOnly] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState<string>('all')
 
   const filteredAndSortedEmployees = useMemo(() => {
     let result = employees.filter(emp => {
       const searchLower = search.toLowerCase()
+
+      // Apply employee type filter
+      if (employeeTypeFilter !== 'all' && emp.employeeType !== employeeTypeFilter) {
+        return false
+      }
+
+      // Apply status filter (show only active if checkbox is checked)
+      if (showActiveOnly && emp.status !== 'active') {
+        return false
+      }
+
+      // Apply company filter (only for haken employees)
+      if (employeeTypeFilter === 'haken' && selectedCompany !== 'all') {
+        if (emp.dispatchCompany !== selectedCompany) {
+          return false
+        }
+      }
+
       return (
         emp.employeeId.toLowerCase().includes(searchLower) ||
         emp.name.toLowerCase().includes(searchLower) ||
@@ -59,9 +80,25 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
           aValue = ((a.billingRate - a.hourlyRate) / a.billingRate) * 100
           bValue = ((b.billingRate - b.hourlyRate) / b.billingRate) * 100
           break
+        case 'employeeId':
+          aValue = a.employeeId
+          bValue = b.employeeId
+          break
+        case 'dispatchCompany':
+          aValue = a.dispatchCompany
+          bValue = b.dispatchCompany
+          break
+        case 'hourlyRate':
+          aValue = a.hourlyRate
+          bValue = b.hourlyRate
+          break
+        case 'billingRate':
+          aValue = a.billingRate
+          bValue = b.billingRate
+          break
         default:
-          aValue = a[sortField]
-          bValue = b[sortField]
+          aValue = a.name
+          bValue = b.name
       }
 
       if (typeof aValue === 'string') {
@@ -76,7 +113,18 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
     })
 
     return result
-  }, [employees, search, sortField, sortDirection])
+  }, [employees, search, sortField, sortDirection, employeeTypeFilter, showActiveOnly, selectedCompany])
+
+  // Get unique dispatch companies for haken employees
+  const availableCompanies = useMemo(() => {
+    const companies = new Set<string>()
+    employees
+      .filter(emp => emp.employeeType === 'haken')
+      .forEach(emp => {
+        companies.add(emp.dispatchCompany)
+      })
+    return Array.from(companies).sort()
+  }, [employees])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -116,7 +164,7 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
             <Badge variant="secondary">{filteredAndSortedEmployees.length}名</Badge>
           </CardTitle>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -126,9 +174,44 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
                 className="pl-9 w-64"
               />
             </div>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+
+            <select
+              value={employeeTypeFilter}
+              onChange={(e) => {
+                setEmployeeTypeFilter(e.target.value as 'haken' | 'ukeoi' | 'all')
+                setSelectedCompany('all')
+              }}
+              className="px-3 py-2 rounded-md border border-input bg-background text-sm"
+            >
+              <option value="haken">派遣社員のみ</option>
+              <option value="ukeoi">請負社員のみ</option>
+              <option value="all">全て表示</option>
+            </select>
+
+            {employeeTypeFilter === 'haken' && (
+              <select
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                className="px-3 py-2 rounded-md border border-input bg-background text-sm"
+              >
+                <option value="all">全企業</option>
+                {availableCompanies.map((company) => (
+                  <option key={company} value={company}>
+                    {company}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <label className="flex items-center gap-2 px-3 py-2 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors">
+              <input
+                type="checkbox"
+                checked={showActiveOnly}
+                onChange={(e) => setShowActiveOnly(e.target.checked)}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <span>在職中のみ</span>
+            </label>
           </div>
         </div>
       </CardHeader>

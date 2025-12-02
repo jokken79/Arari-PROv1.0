@@ -8,6 +8,7 @@ export interface Employee {
   department: string          // 部署
   hourlyRate: number          // 時給
   billingRate: number         // 単価
+  employeeType?: 'haken' | 'ukeoi'  // 従業員タイプ: 派遣=haken, 請負=ukeoi
   status: 'active' | 'inactive' | 'pending'
   hireDate: string            // 入社日
   createdAt: string

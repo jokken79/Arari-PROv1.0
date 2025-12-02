@@ -20,8 +20,8 @@ class PayrollService:
 
     # ============== Employee Operations ==============
 
-    def get_employees(self, search: Optional[str] = None, company: Optional[str] = None) -> List[Dict]:
-        """Get all employees with optional filtering"""
+    def get_employees(self, search: Optional[str] = None, company: Optional[str] = None, employee_type: Optional[str] = None) -> List[Dict]:
+        """Get all employees with optional filtering by search, company, and employee_type"""
         cursor = self.db.cursor()
 
         query = """
@@ -43,6 +43,10 @@ class PayrollService:
         if company:
             query += " AND e.dispatch_company = ?"
             params.append(company)
+
+        if employee_type:
+            query += " AND e.employee_type = ?"
+            params.append(employee_type)
 
         query += " ORDER BY e.employee_id"
 

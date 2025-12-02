@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { EmployeeUploader } from '@/components/upload/EmployeeUploader'
 import { FileUploader } from '@/components/upload/FileUploader'
+import { FolderSync } from '@/components/upload/FolderSync'
 
 export default function UploadPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -29,7 +31,11 @@ export default function UploadPage() {
             </p>
           </motion.div>
 
-          <FileUploader />
+          <div className="space-y-6">
+            <EmployeeUploader />
+            <FolderSync />
+            <FileUploader />
+          </div>
         </div>
       </main>
     </div>

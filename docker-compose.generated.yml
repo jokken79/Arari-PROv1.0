@@ -1,0 +1,234 @@
+version: '3.8'
+services:
+  # 10 instances: frontend and backend per instance
+  # Instance 00
+  arari_app_frontend_00:
+    container_name: arari_app_frontend_00
+    image: arari-pro-frontend:latest
+    ports:
+      - "4000:3000"
+    env_file:
+      - ./.env.instance00
+    volumes:
+      - arari_app_data_00:/app/data
+
+  arari_app_backend_00:
+    container_name: arari_app_backend_00
+    image: arari-pro-backend:latest
+    ports:
+      - "9000:8000"
+    env_file:
+      - ./.env.instance00
+    volumes:
+      - arari_app_db_00:/var/lib/arari
+
+  # Instance 01
+  arari_app_frontend_01:
+    container_name: arari_app_frontend_01
+    image: arari-pro-frontend:latest
+    ports:
+      - "4001:3000"
+    env_file:
+      - ./.env.instance01
+    volumes:
+      - arari_app_data_01:/app/data
+
+  arari_app_backend_01:
+    container_name: arari_app_backend_01
+    image: arari-pro-backend:latest
+    ports:
+      - "9001:8000"
+    env_file:
+      - ./.env.instance01
+    volumes:
+      - arari_app_db_01:/var/lib/arari
+
+  # Instance 02
+  arari_app_frontend_02:
+    container_name: arari_app_frontend_02
+    image: arari-pro-frontend:latest
+    ports:
+      - "4002:3000"
+    env_file:
+      - ./.env.instance02
+    volumes:
+      - arari_app_data_02:/app/data
+
+  arari_app_backend_02:
+    container_name: arari_app_backend_02
+    image: arari-pro-backend:latest
+    ports:
+      - "9002:8000"
+    env_file:
+      - ./.env.instance02
+    volumes:
+      - arari_app_db_02:/var/lib/arari
+
+  # Instance 03
+  arari_app_frontend_03:
+    container_name: arari_app_frontend_03
+    image: arari-pro-frontend:latest
+    ports:
+      - "4003:3000"
+    env_file:
+      - ./.env.instance03
+    volumes:
+      - arari_app_data_03:/app/data
+
+  arari_app_backend_03:
+    container_name: arari_app_backend_03
+    image: arari-pro-backend:latest
+    ports:
+      - "9003:8000"
+    env_file:
+      - ./.env.instance03
+    volumes:
+      - arari_app_db_03:/var/lib/arari
+
+  # Instance 04
+  arari_app_frontend_04:
+    container_name: arari_app_frontend_04
+    image: arari-pro-frontend:latest
+    ports:
+      - "4004:3000"
+    env_file:
+      - ./.env.instance04
+    volumes:
+      - arari_app_data_04:/app/data
+
+  arari_app_backend_04:
+    container_name: arari_app_backend_04
+    image: arari-pro-backend:latest
+    ports:
+      - "9004:8000"
+    env_file:
+      - ./.env.instance04
+    volumes:
+      - arari_app_db_04:/var/lib/arari
+
+  # Instance 05
+  arari_app_frontend_05:
+    container_name: arari_app_frontend_05
+    image: arari-pro-frontend:latest
+    ports:
+      - "4005:3000"
+    env_file:
+      - ./.env.instance05
+    volumes:
+      - arari_app_data_05:/app/data
+
+  arari_app_backend_05:
+    container_name: arari_app_backend_05
+    image: arari-pro-backend:latest
+    ports:
+      - "9005:8000"
+    env_file:
+      - ./.env.instance05
+    volumes:
+      - arari_app_db_05:/var/lib/arari
+
+  # Instance 06
+  arari_app_frontend_06:
+    container_name: arari_app_frontend_06
+    image: arari-pro-frontend:latest
+    ports:
+      - "4006:3000"
+    env_file:
+      - ./.env.instance06
+    volumes:
+      - arari_app_data_06:/app/data
+
+  arari_app_backend_06:
+    container_name: arari_app_backend_06
+    image: arari-pro-backend:latest
+    ports:
+      - "9006:8000"
+    env_file:
+      - ./.env.instance06
+    volumes:
+      - arari_app_db_06:/var/lib/arari
+
+  # Instance 07
+  arari_app_frontend_07:
+    container_name: arari_app_frontend_07
+    image: arari-pro-frontend:latest
+    ports:
+      - "4007:3000"
+    env_file:
+      - ./.env.instance07
+    volumes:
+      - arari_app_data_07:/app/data
+
+  arari_app_backend_07:
+    container_name: arari_app_backend_07
+    image: arari-pro-backend:latest
+    ports:
+      - "9007:8000"
+    env_file:
+      - ./.env.instance07
+    volumes:
+      - arari_app_db_07:/var/lib/arari
+
+  # Instance 08
+  arari_app_frontend_08:
+    container_name: arari_app_frontend_08
+    image: arari-pro-frontend:latest
+    ports:
+      - "4008:3000"
+    env_file:
+      - ./.env.instance08
+    volumes:
+      - arari_app_data_08:/app/data
+
+  arari_app_backend_08:
+    container_name: arari_app_backend_08
+    image: arari-pro-backend:latest
+    ports:
+      - "9008:8000"
+    env_file:
+      - ./.env.instance08
+    volumes:
+      - arari_app_db_08:/var/lib/arari
+
+  # Instance 09
+  arari_app_frontend_09:
+    container_name: arari_app_frontend_09
+    image: arari-pro-frontend:latest
+    ports:
+      - "4009:3000"
+    env_file:
+      - ./.env.instance09
+    volumes:
+      - arari_app_data_09:/app/data
+
+  arari_app_backend_09:
+    container_name: arari_app_backend_09
+    image: arari-pro-backend:latest
+    ports:
+      - "9009:8000"
+    env_file:
+      - ./.env.instance09
+    volumes:
+      - arari_app_db_09:/var/lib/arari
+
+volumes:
+  arari_app_data_00: {}
+  arari_app_db_00: {}
+  arari_app_data_01: {}
+  arari_app_db_01: {}
+  arari_app_data_02: {}
+  arari_app_db_02: {}
+  arari_app_data_03: {}
+  arari_app_db_03: {}
+  arari_app_data_04: {}
+  arari_app_db_04: {}
+  arari_app_data_05: {}
+  arari_app_db_05: {}
+  arari_app_data_06: {}
+  arari_app_db_06: {}
+  arari_app_data_07: {}
+  arari_app_db_07: {}
+  arari_app_data_08: {}
+  arari_app_db_08: {}
+  arari_app_data_09: {}
+  arari_app_db_09: {}

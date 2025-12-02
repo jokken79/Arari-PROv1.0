@@ -65,6 +65,33 @@ const renderCustomLabel = ({
 }
 
 export function ProfitDistributionChart({ data }: ProfitDistributionChartProps) {
+  // Handle empty or undefined data
+  const chartData = data || []
+
+  if (chartData.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5 }}
+      >
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-purple-500" />
+              粗利分布
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              データがありません
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    )
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -83,7 +110,7 @@ export function ProfitDistributionChart({ data }: ProfitDistributionChartProps) 
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={data}
+                  data={chartData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -95,7 +122,7 @@ export function ProfitDistributionChart({ data }: ProfitDistributionChartProps) 
                   animationBegin={0}
                   animationDuration={1000}
                 >
-                  {data.map((entry, index) => (
+                  {chartData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}

@@ -9,13 +9,20 @@ import { useAppStore } from '@/store/appStore'
 
 export default function EmployeesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { employees, loadSampleData } = useAppStore()
+  const { employees, useBackend, loadDataFromBackend, loadSampleData } = useAppStore()
 
   useEffect(() => {
     if (employees.length === 0) {
-      loadSampleData()
+      // Try backend first, fall back to sample data if it fails
+      if (useBackend) {
+        loadDataFromBackend().catch(() => {
+          loadSampleData()
+        })
+      } else {
+        loadSampleData()
+      }
     }
-  }, [employees.length, loadSampleData])
+  }, [employees.length, useBackend, loadDataFromBackend, loadSampleData])
 
   return (
     <div className="min-h-screen bg-background">

@@ -11,6 +11,9 @@ import {
   Shield,
   Database,
   Palette,
+  RefreshCw,
+  Check,
+  AlertCircle,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -19,10 +22,43 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useTheme } from '@/components/ui/theme-provider'
 import { cn } from '@/lib/utils'
+import { syncApi } from '@/lib/api'
 
 export default function SettingsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, setTheme, resolvedTheme } = useTheme()
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<{
+    success?: boolean
+    message?: string
+    stats?: any
+  } | null>(null)
+
+  const handleSync = async () => {
+    setIsSyncing(true)
+    setSyncStatus(null)
+
+    const { data, error } = await syncApi.syncEmployees()
+
+    if (error) {
+      setSyncStatus({
+        success: false,
+        message: error,
+      })
+    } else if (data) {
+      setSyncStatus({
+        success: data.success,
+        message: data.message,
+        stats: data.stats,
+      })
+      // Auto-clear success message after 5 seconds
+      if (data.success) {
+        setTimeout(() => setSyncStatus(null), 5000)
+      }
+    }
+
+    setIsSyncing(false)
+  }
 
   const themeOptions = [
     { value: 'light', label: 'ライト', icon: Sun },
@@ -169,20 +205,83 @@ export default function SettingsPage() {
                     <CardTitle>データ管理</CardTitle>
                   </div>
                   <CardDescription>
-                    データのバックアップと復元
+                    社員データの同期とバックアップ
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-4">
-                    <Button variant="outline">
-                      データをバックアップ
-                    </Button>
-                    <Button variant="outline">
-                      バックアップから復元
-                    </Button>
-                    <Button variant="outline" className="text-destructive hover:text-destructive">
-                      すべてのデータを削除
-                    </Button>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+                      <div className="flex items-center gap-3">
+                        <RefreshCw className={cn(
+                          "h-5 w-5 text-blue-600 dark:text-blue-400",
+                          isSyncing && "animate-spin"
+                        )} />
+                        <div className="flex-1">
+                          <p className="font-medium text-blue-900 dark:text-blue-100">
+                            ChinginGeneratorから同期
+                          </p>
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            最新の社員情報を自動インポート
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleSync}
+                          disabled={isSyncing}
+                          className="gap-2"
+                        >
+                          <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                          {isSyncing ? '同期中...' : '同期する'}
+                        </Button>
+                      </div>
+
+                      {syncStatus && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={cn(
+                            "mt-3 p-3 rounded-md text-sm",
+                            syncStatus.success
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                              : "bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-300 border border-red-300 dark:border-red-700"
+                          )}
+                        >
+                          <div className="flex items-start gap-2">
+                            {syncStatus.success ? (
+                              <Check className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium">{syncStatus.message}</p>
+                              {syncStatus.stats && (
+                                <div className="mt-2 space-y-1 text-xs">
+                                  <p>• 派遣社員 (haken): {syncStatus.stats.haken_added} 件</p>
+                                  <p>• 請負社員 (ukeoi): {syncStatus.stats.ukeoi_added} 件</p>
+                                  {syncStatus.stats.total_errors > 0 && (
+                                    <p>• エラー: {syncStatus.stats.total_errors} 件</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">その他のオプション</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" disabled>
+                        データをバックアップ
+                      </Button>
+                      <Button variant="outline" disabled>
+                        バックアップから復元
+                      </Button>
+                      <Button variant="outline" className="text-destructive hover:text-destructive" disabled>
+                        すべてのデータを削除
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

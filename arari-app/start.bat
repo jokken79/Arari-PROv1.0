@@ -7,6 +7,14 @@ echo    粗利 PRO v2.0 - Starting...
 echo ========================================
 echo.
 
+:: Puertos no comunes para evitar conflictos
+set BACKEND_PORT=8765
+set FRONTEND_PORT=4321
+
+echo [CONFIG] Backend Port:  %BACKEND_PORT%
+echo [CONFIG] Frontend Port: %FRONTEND_PORT%
+echo.
+
 :: Check if we're in the right directory
 if not exist "package.json" (
     echo [ERROR] Please run this script from the arari-app directory
@@ -43,23 +51,23 @@ if not exist "node_modules" (
 )
 
 echo.
-echo [INFO] Starting Backend (FastAPI) on port 8000...
-start "Arari Backend" cmd /k "cd api && python main.py"
+echo [INFO] Starting Backend (FastAPI) on port %BACKEND_PORT%...
+start "Arari Backend" cmd /k "cd api && python -c "import uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=%BACKEND_PORT%, reload=True)""
 
 :: Wait a moment for backend to start
 timeout /t 3 /nobreak >nul
 
-echo [INFO] Starting Frontend (Next.js) on port 3000...
-start "Arari Frontend" cmd /k "npm run dev"
+echo [INFO] Starting Frontend (Next.js) on port %FRONTEND_PORT%...
+start "Arari Frontend" cmd /k "set PORT=%FRONTEND_PORT%&& set NEXT_PUBLIC_API_URL=http://localhost:%BACKEND_PORT%&& npm run dev"
 
 echo.
 echo ========================================
 echo    粗利 PRO v2.0 is starting!
 echo ========================================
 echo.
-echo    Frontend:  http://localhost:3000
-echo    Backend:   http://localhost:8000
-echo    API Docs:  http://localhost:8000/docs
+echo    Frontend:  http://localhost:%FRONTEND_PORT%
+echo    Backend:   http://localhost:%BACKEND_PORT%
+echo    API Docs:  http://localhost:%BACKEND_PORT%/docs
 echo.
 echo    Close the terminal windows to stop.
 echo ========================================
@@ -67,6 +75,6 @@ echo.
 
 :: Open browser after a short delay
 timeout /t 5 /nobreak >nul
-start http://localhost:3000
+start http://localhost:%FRONTEND_PORT%
 
 pause

@@ -8,10 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
+import tempfile
+import os
 
 from database import init_db, get_db
 from models import Employee, PayrollRecord, EmployeeCreate, PayrollRecordCreate
 from services import PayrollService, ExcelParser
+from salary_parser import SalaryStatementParser
+from employee_parser import DBGenzaiXParser
 from typing import List, Optional
 import sqlite3
 
@@ -19,10 +23,10 @@ import sqlite3
 async def lifespan(app: FastAPI):
     # Startup: Initialize database
     init_db()
-    print("✅ Database initialized")
+    print("[OK] Database initialized")
     yield
     # Shutdown
-    print("👋 Shutting down...")
+    print("[SHUTDOWN] Closing application...")
 
 app = FastAPI(
     title="粗利 PRO API",
@@ -34,7 +38,22 @@ app = FastAPI(
 # CORS middleware for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3004",
+        "http://127.0.0.1:3004",
+        "http://localhost:3005",
+        "http://127.0.0.1:3005",
+        "http://localhost:3006",
+        "http://127.0.0.1:3006",
+        "http://localhost:3007",
+        "http://127.0.0.1:3007",
+        "http://localhost:4321",
+        "http://127.0.0.1:4321",
+        "http://localhost:8765",
+        "http://127.0.0.1:8765",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,11 +71,12 @@ async def health_check():
 async def get_employees(
     db: sqlite3.Connection = Depends(get_db),
     search: Optional[str] = None,
-    company: Optional[str] = None
+    company: Optional[str] = None,
+    employee_type: Optional[str] = None
 ):
-    """Get all employees with optional filtering"""
+    """Get all employees with optional filtering by search, company, and employee_type"""
     service = PayrollService(db)
-    return service.get_employees(search=search, company=company)
+    return service.get_employees(search=search, company=company, employee_type=employee_type)
 
 @app.get("/api/employees/{employee_id}", response_model=Employee)
 async def get_employee(employee_id: str, db: sqlite3.Connection = Depends(get_db)):
@@ -157,6 +177,29 @@ async def get_profit_trend(
     service = PayrollService(db)
     return service.get_profit_trend(months=months)
 
+# ============== Sync Employees ==============
+
+@app.post("/api/sync-employees")
+async def sync_employees(db: sqlite3.Connection = Depends(get_db)):
+    """Sync/update employees from ChinginGenerator database"""
+    try:
+        from migrate_employees import migrate_employees_sync
+        success, stats = migrate_employees_sync(db)
+
+        if success:
+            return {
+                "success": True,
+                "message": f"Sincronización completada: {stats['total_added']} empleados importados/actualizados",
+                "stats": stats
+            }
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error en sincronización: {stats.get('error', 'Error desconocido')}"
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
 # ============== File Upload ==============
 
 @app.post("/api/upload")
@@ -179,28 +222,65 @@ async def upload_payroll_file(
         # Read file content
         content = await file.read()
 
-        # Parse file
-        parser = ExcelParser()
-        records = parser.parse(content, file_ext)
+        # Detect file type and use appropriate parser
+        # Use specialized SalaryStatementParser for .xlsm salary statement files
+        if file_ext == '.xlsm' and ('給与明細' in file.filename or '給料明細' in file.filename):
+            parser = SalaryStatementParser()
+            records = parser.parse(content)
+        else:
+            # Use existing ExcelParser for simple CSV/XLSX files
+            parser = ExcelParser()
+            records = parser.parse(content, file_ext)
 
-        # Save to database
+        # Save to database with improved error tracking
         service = PayrollService(db)
         saved_count = 0
-        errors = []
+        skipped = []  # Employees not found in database
+        errors = []   # Other errors
 
         for record in records:
             try:
+                # Check if employee exists first
+                employee = service.get_employee(record.employee_id)
+                if not employee:
+                    skipped.append({
+                        'employee_id': record.employee_id,
+                        'period': record.period,
+                        'reason': 'Employee not found in database'
+                    })
+                    continue
+
                 service.create_payroll_record(record)
                 saved_count += 1
+
+            except sqlite3.IntegrityError as e:
+                # Duplicate record with same (employee_id, period) - this is OK
+                # INSERT OR REPLACE in services.py handles this
+                if 'UNIQUE constraint failed' in str(e):
+                    saved_count += 1  # Count as saved (replaced)
+                else:
+                    errors.append({
+                        'employee_id': record.employee_id,
+                        'period': record.period,
+                        'error': str(e)
+                    })
+
             except Exception as e:
-                errors.append(str(e))
+                errors.append({
+                    'employee_id': record.employee_id,
+                    'period': record.period,
+                    'error': str(e)
+                })
 
         return {
             "success": True,
             "filename": file.filename,
             "total_records": len(records),
             "saved_records": saved_count,
-            "errors": errors[:5] if errors else None  # Return first 5 errors only
+            "skipped_count": len(skipped),
+            "error_count": len(errors),
+            "skipped_details": skipped[:10] if skipped else None,  # First 10 skipped
+            "errors": [e['error'] for e in errors[:10]] if errors else None  # First 10 error messages
         }
 
     except Exception as e:
@@ -222,6 +302,194 @@ async def export_payroll(
     """Export payroll records as JSON"""
     service = PayrollService(db)
     return service.get_payroll_records(period=period)
+
+@app.post("/api/sync-from-folder")
+async def sync_from_folder(
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Sync all .xlsm files from a folder path"""
+    from pathlib import Path
+    import os
+
+    folder_path = payload.get("folder_path", "").strip()
+
+    if not folder_path:
+        raise HTTPException(status_code=400, detail="folder_path is required")
+
+    # Normalize path for Windows
+    folder_path = folder_path.replace("/", "\\")
+    path = Path(folder_path)
+
+    if not path.exists():
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    if not path.is_dir():
+        raise HTTPException(status_code=400, detail=f"Path is not a directory: {folder_path}")
+
+    # Find all .xlsm files
+    xlsm_files = list(path.glob("*.xlsm"))
+
+    if not xlsm_files:
+        return JSONResponse({
+            "status": "error",
+            "message": f"No .xlsm files found in {folder_path}",
+            "files_found": 0,
+            "files_processed": 0,
+            "total_records": 0
+        })
+
+    # Process each file
+    service = PayrollService(db)
+    total_saved = 0
+    total_skipped = 0
+    total_errors = 0
+    files_processed = 0
+
+    for file_path in xlsm_files:
+        try:
+            # Read file content
+            with open(file_path, "rb") as f:
+                file_content = f.read()
+
+            # Detect file type and parse
+            filename = file_path.name.lower()
+
+            # Try to parse with salary statement parser if it looks like salary data
+            if "給" in filename or "給与" in filename or "給料" in filename:
+                parser = SalaryStatementParser()
+            else:
+                parser = ExcelParser()
+
+            payroll_records = parser.parse(file_content)
+
+            # Insert records
+            for record_data in payroll_records:
+                try:
+                    service.create_payroll_record(record_data)
+                    total_saved += 1
+                except Exception:
+                    total_errors += 1
+
+            files_processed += 1
+
+        except Exception as e:
+            total_errors += 1
+
+    return JSONResponse({
+        "status": "success",
+        "message": f"Processed {files_processed} files from {folder_path}",
+        "files_found": len(xlsm_files),
+        "files_processed": files_processed,
+        "total_records_saved": total_saved,
+        "total_records_skipped": total_skipped,
+        "total_errors": total_errors
+    })
+
+
+# ============== EMPLOYEE IMPORT ==============
+
+@app.post("/api/import-employees")
+async def import_employees(
+    file: UploadFile = File(...),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """Import employees from Excel file with DBGenzaiX sheet"""
+
+    try:
+        # Validate file extension
+        filename = file.filename or ""
+        ext = filename.split('.')[-1].lower()
+        if ext not in ['xls', 'xlsm']:
+            raise HTTPException(status_code=400, detail="Solo se aceptan archivos .xls o .xlsm")
+
+        # Save file temporarily
+        with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+            contents = await file.read()
+            tmp.write(contents)
+            tmp_path = tmp.name
+
+        try:
+            # Parse employees from Excel
+            parser = DBGenzaiXParser()
+            employees, stats = parser.parse_employees(tmp_path)
+
+            if parser.errors:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "status": "error",
+                        "message": parser.errors[0],
+                        "errors": parser.errors
+                    }
+                )
+
+            # Insert/update employees in database
+            cursor = db.cursor()
+            added = 0
+            updated = 0
+
+            for emp in employees:
+                try:
+                    # Check if employee already exists
+                    cursor.execute(
+                        "SELECT id FROM employees WHERE employee_id = ?",
+                        (emp.employee_id,)
+                    )
+                    existing = cursor.fetchone()
+
+                    # Insert or replace
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO employees
+                        (employee_id, name, name_kana, dispatch_company, department,
+                         hourly_rate, billing_rate, status, hire_date, employee_type, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                    """, (
+                        emp.employee_id, emp.name, emp.name_kana, emp.dispatch_company, emp.department,
+                        emp.hourly_rate, emp.billing_rate, emp.status, emp.hire_date, emp.employee_type
+                    ))
+
+                    if existing:
+                        updated += 1
+                    else:
+                        added += 1
+                except Exception as e:
+                    print(f"Error inserting employee {emp.employee_id}: {e}")
+
+            db.commit()
+
+            # Get total employees count
+            cursor.execute("SELECT COUNT(*) FROM employees")
+            total_count = cursor.fetchone()[0]
+
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "success",
+                    "employees_added": added,
+                    "employees_updated": updated,
+                    "employees_skipped": stats['rows_skipped'],
+                    "total_employees": total_count,
+                    "message": f"Importación completada: {added} nuevos, {updated} actualizados"
+                }
+            )
+
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": f"Error al importar empleados: {str(e)}",
+                "errors": [str(e)]
+            }
+        )
 
 # ============== Run Server ==============
 
