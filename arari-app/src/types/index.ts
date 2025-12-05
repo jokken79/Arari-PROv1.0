@@ -22,12 +22,18 @@ export interface PayrollRecord {
   period: string              // YYYY年M月
   workDays: number            // 出勤日数
   workHours: number           // 労働時間
-  overtimeHours: number       // 残業時間
+  overtimeHours: number       // 残業時間（≤60h部分）
+  nightHours: number          // 深夜時間
+  holidayHours: number        // 休日時間
+  overtimeOver60h: number     // 60H過残業（60h超え部分）
   paidLeaveHours: number      // 有給時間
   paidLeaveDays: number       // 有給日数
   paidLeaveAmount: number     // 有給金額（円）- Excelから直接値
   baseSalary: number          // 基本給
-  overtimePay: number         // 残業代
+  overtimePay: number         // 残業代（≤60h: ×1.25）
+  nightPay: number            // 深夜手当（本人: ×0.25）
+  holidayPay: number          // 休日手当（×1.35）
+  overtimeOver60hPay: number  // 60H過残業手当（×1.5）
   transportAllowance: number  // 通勤費
   otherAllowances: number     // その他手当
   grossSalary: number         // 総支給額

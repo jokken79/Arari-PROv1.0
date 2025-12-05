@@ -81,6 +81,47 @@ export const INSURANCE_RATES = {
   WORKERS_COMP: 0.003,   // 労災保険 0.3% (派遣業)
 }
 
+// Billing multipliers (what factory pays us)
+export const BILLING_MULTIPLIERS = {
+  OVERTIME_NORMAL: 1.25,      // 残業 ≤60h: ×1.25
+  OVERTIME_OVER_60H: 1.5,     // 残業 >60h: ×1.5
+  NIGHT: 0.25,                // 深夜: +0.25 (extra on top)
+  HOLIDAY: 1.35,              // 休日: ×1.35
+}
+
+// Calculate billing amount from hours and billing rate
+export interface BillingParams {
+  workHours: number           // 労働時間
+  overtimeHours: number       // 残業時間 (≤60h)
+  overtimeOver60h: number     // 60H過残業
+  nightHours: number          // 深夜時間
+  holidayHours: number        // 休日時間
+  billingRate: number         // 単価
+}
+
+export function calculateBillingAmount(params: BillingParams): number {
+  const { workHours, overtimeHours, overtimeOver60h, nightHours, holidayHours, billingRate } = params
+
+  if (billingRate <= 0) return 0
+
+  // 基本時間: 単価 × work_hours
+  const baseBilling = workHours * billingRate
+
+  // 残業 ≤60h: 単価 × 1.25
+  const overtimeBilling = overtimeHours * billingRate * BILLING_MULTIPLIERS.OVERTIME_NORMAL
+
+  // 残業 >60h: 単価 × 1.5
+  const overtimeOver60hBilling = overtimeOver60h * billingRate * BILLING_MULTIPLIERS.OVERTIME_OVER_60H
+
+  // 深夜: 単価 × 0.25 (extra)
+  const nightBilling = nightHours * billingRate * BILLING_MULTIPLIERS.NIGHT
+
+  // 休日: 単価 × 1.35
+  const holidayBilling = holidayHours * billingRate * BILLING_MULTIPLIERS.HOLIDAY
+
+  return Math.round(baseBilling + overtimeBilling + overtimeOver60hBilling + nightBilling + holidayBilling)
+}
+
 // Calculate real cost including social insurance
 export interface RealCostParams {
   grossSalary: number          // 総支給額 (includes transport)

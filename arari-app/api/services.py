@@ -157,6 +157,70 @@ class PayrollService:
     EMPLOYMENT_INSURANCE_RATE = 0.0095  # 雇用保険（会社負担）0.95%
     WORKERS_COMP_RATE = 0.003  # 労災保険 0.3% (派遣業の場合、業種により0.25%~0.88%)
 
+    # Billing multipliers (for factory billing)
+    # These are what the factory pays us, NOT what we pay the employee
+    BILLING_MULTIPLIERS = {
+        'overtime_normal': 1.25,      # 残業 ≤60h: ×1.25
+        'overtime_over_60h': 1.5,     # 残業 >60h: ×1.5
+        'night': 0.25,                # 深夜: +0.25 (extra on top of regular or overtime)
+        'holiday': 1.35,              # 休日: ×1.35
+    }
+
+    def calculate_billing_amount(self, record: PayrollRecordCreate, employee: Dict) -> float:
+        """
+        Calculate billing amount based on hours and employee's 単価 (billing_rate)
+
+        Formula:
+        - 基本時間: 単価 × work_hours
+        - 残業 (≤60h): 単価 × overtime_hours × 1.25
+        - 残業 (>60h): 単価 × overtime_over_60h × 1.5
+        - 深夜: 単価 × night_hours × 0.25 (extra on top)
+        - 休日: 単価 × holiday_hours × 1.35
+
+        Args:
+            record: PayrollRecordCreate with hours data
+            employee: Employee dict with billing_rate
+
+        Returns:
+            Calculated billing amount
+        """
+        tanka = employee.get('billing_rate', 0)
+        if tanka <= 0:
+            return 0.0
+
+        # Get hours from record
+        work_hours = getattr(record, 'work_hours', 0) or 0
+        overtime_hours = getattr(record, 'overtime_hours', 0) or 0
+        overtime_over_60h = getattr(record, 'overtime_over_60h', 0) or 0
+        night_hours = getattr(record, 'night_hours', 0) or 0
+        holiday_hours = getattr(record, 'holiday_hours', 0) or 0
+
+        # Calculate billing components
+        # 基本時間 (normal hours)
+        base_billing = work_hours * tanka
+
+        # 残業 ≤60h: ×1.25
+        overtime_billing = overtime_hours * tanka * self.BILLING_MULTIPLIERS['overtime_normal']
+
+        # 残業 >60h: ×1.5 (60H過残業)
+        overtime_over_60h_billing = overtime_over_60h * tanka * self.BILLING_MULTIPLIERS['overtime_over_60h']
+
+        # 深夜: +0.25 extra (factory pays extra for night work)
+        night_billing = night_hours * tanka * self.BILLING_MULTIPLIERS['night']
+
+        # 休日: ×1.35
+        holiday_billing = holiday_hours * tanka * self.BILLING_MULTIPLIERS['holiday']
+
+        total_billing = (
+            base_billing +
+            overtime_billing +
+            overtime_over_60h_billing +
+            night_billing +
+            holiday_billing
+        )
+
+        return round(total_billing)
+
     def create_payroll_record(self, record: PayrollRecordCreate) -> Dict:
         """Create a new payroll record with calculated fields"""
         # Get employee info for calculations
@@ -165,6 +229,22 @@ class PayrollService:
             raise ValueError(f"Employee {record.employee_id} not found")
 
         hourly_rate = employee['hourly_rate']
+        billing_rate = employee['billing_rate']
+
+        # Get new hour fields with defaults
+        night_hours = getattr(record, 'night_hours', 0) or 0
+        holiday_hours = getattr(record, 'holiday_hours', 0) or 0
+        overtime_over_60h = getattr(record, 'overtime_over_60h', 0) or 0
+
+        # Get new pay fields with defaults
+        night_pay = getattr(record, 'night_pay', 0) or 0
+        holiday_pay = getattr(record, 'holiday_pay', 0) or 0
+        overtime_over_60h_pay = getattr(record, 'overtime_over_60h_pay', 0) or 0
+
+        # Calculate billing_amount if not provided or is 0
+        billing_amount = record.billing_amount
+        if billing_amount <= 0 and billing_rate > 0:
+            billing_amount = self.calculate_billing_amount(record, employee)
 
         # Calculate company costs
         # 社会保険（会社負担）= 本人負担と同額 (労使折半)
@@ -177,31 +257,25 @@ class PayrollService:
         company_workers_comp = getattr(record, 'company_workers_comp', None) or round(record.gross_salary * self.WORKERS_COMP_RATE)
 
         # 有給コスト: Usar valor directo si existe, sino calcular por horas
-        # Si el Excel trae 有給金額 (valor en yenes), usar ese directamente
-        # Si solo trae 有給時間 (horas), calcular: horas × 時給
         paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
         if paid_leave_amount > 0:
-            paid_leave_cost = paid_leave_amount  # Usar valor directo del Excel
+            paid_leave_cost = paid_leave_amount
         else:
-            paid_leave_cost = record.paid_leave_hours * hourly_rate  # Calcular por horas
+            paid_leave_cost = record.paid_leave_hours * hourly_rate
 
         # NOTE: transport_allowance is already included in gross_salary (総支給額)
-        # DO NOT add it again to avoid double counting
-        # gross_salary = base_salary + overtime_pay + transport_allowance + other_allowances
-
         total_company_cost = record.total_company_cost or (
             record.gross_salary +
             company_social_insurance +
             company_employment_insurance +
-            company_workers_comp +  # 労災保険追加
+            company_workers_comp +
             paid_leave_cost
-            # transport_cost removed - already in gross_salary
         )
 
         # Calculate profit
-        gross_profit = record.gross_profit or (record.billing_amount - total_company_cost)
+        gross_profit = record.gross_profit or (billing_amount - total_company_cost)
         profit_margin = record.profit_margin or (
-            (gross_profit / record.billing_amount * 100) if record.billing_amount > 0 else 0
+            (gross_profit / billing_amount * 100) if billing_amount > 0 else 0
         )
 
         cursor = self.db.cursor()
@@ -210,20 +284,22 @@ class PayrollService:
         cursor.execute("""
             INSERT OR REPLACE INTO payroll_records (
                 employee_id, period, work_days, work_hours, overtime_hours,
-                paid_leave_hours, paid_leave_days, paid_leave_amount, base_salary, overtime_pay,
+                night_hours, holiday_hours, overtime_over_60h,
+                paid_leave_hours, paid_leave_days, paid_leave_amount,
+                base_salary, overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
                 transport_allowance, other_allowances, gross_salary,
                 social_insurance, employment_insurance, income_tax, resident_tax,
                 other_deductions, net_salary, billing_amount, company_social_insurance,
                 company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.employee_id, record.period, record.work_days, record.work_hours,
-            record.overtime_hours, record.paid_leave_hours, record.paid_leave_days,
-            paid_leave_amount,  # Guardar el valor en yenes si existe
-            record.base_salary, record.overtime_pay, record.transport_allowance,
-            record.other_allowances, record.gross_salary, record.social_insurance,
-            record.employment_insurance, record.income_tax, record.resident_tax,
-            record.other_deductions, record.net_salary, record.billing_amount,
+            record.overtime_hours, night_hours, holiday_hours, overtime_over_60h,
+            record.paid_leave_hours, record.paid_leave_days, paid_leave_amount,
+            record.base_salary, record.overtime_pay, night_pay, holiday_pay, overtime_over_60h_pay,
+            record.transport_allowance, record.other_allowances, record.gross_salary,
+            record.social_insurance, record.employment_insurance, record.income_tax, record.resident_tax,
+            record.other_deductions, record.net_salary, billing_amount,
             company_social_insurance, company_employment_insurance, company_workers_comp,
             total_company_cost, gross_profit, profit_margin
         ))
@@ -475,6 +551,12 @@ class ExcelParser:
         '労働時間': 'work_hours',
         '勤務時間': 'work_hours',
         '残業時間': 'overtime_hours',
+        '深夜時間': 'night_hours',
+        '深夜': 'night_hours',
+        '休日時間': 'holiday_hours',
+        '休日': 'holiday_hours',
+        '60H過残業': 'overtime_over_60h',
+        '60時間超': 'overtime_over_60h',
         '有給時間': 'paid_leave_hours',
         '有給日数': 'paid_leave_days',
         '有給金額': 'paid_leave_amount',
@@ -484,6 +566,10 @@ class ExcelParser:
         '有休支給': 'paid_leave_amount',
         '基本給': 'base_salary',
         '残業代': 'overtime_pay',
+        '残業手当': 'overtime_pay',
+        '深夜手当': 'night_pay',
+        '休日手当': 'holiday_pay',
+        '60H過手当': 'overtime_over_60h_pay',
         '通勤費': 'transport_allowance',
         '交通費': 'transport_allowance',
         'その他手当': 'other_allowances',
@@ -577,11 +663,17 @@ class ExcelParser:
             'work_days': 0,
             'work_hours': 0,
             'overtime_hours': 0,
+            'night_hours': 0,
+            'holiday_hours': 0,
+            'overtime_over_60h': 0,
             'paid_leave_hours': 0,
             'paid_leave_days': 0,
             'paid_leave_amount': 0,
             'base_salary': 0,
             'overtime_pay': 0,
+            'night_pay': 0,
+            'holiday_pay': 0,
+            'overtime_over_60h_pay': 0,
             'transport_allowance': 0,
             'other_allowances': 0,
             'gross_salary': 0,

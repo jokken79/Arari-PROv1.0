@@ -56,11 +56,17 @@ def init_db():
             work_days INTEGER DEFAULT 0,
             work_hours REAL DEFAULT 0,
             overtime_hours REAL DEFAULT 0,
+            night_hours REAL DEFAULT 0,
+            holiday_hours REAL DEFAULT 0,
+            overtime_over_60h REAL DEFAULT 0,
             paid_leave_hours REAL DEFAULT 0,
             paid_leave_days REAL DEFAULT 0,
             paid_leave_amount REAL DEFAULT 0,
             base_salary REAL DEFAULT 0,
             overtime_pay REAL DEFAULT 0,
+            night_pay REAL DEFAULT 0,
+            holiday_pay REAL DEFAULT 0,
+            overtime_over_60h_pay REAL DEFAULT 0,
             transport_allowance REAL DEFAULT 0,
             other_allowances REAL DEFAULT 0,
             gross_salary REAL DEFAULT 0,
@@ -84,15 +90,22 @@ def init_db():
     """)
 
     # Add columns if not exists (for existing databases)
-    try:
-        cursor.execute("ALTER TABLE payroll_records ADD COLUMN company_workers_comp REAL DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    new_columns = [
+        ("company_workers_comp", "REAL DEFAULT 0"),
+        ("paid_leave_amount", "REAL DEFAULT 0"),
+        ("night_hours", "REAL DEFAULT 0"),
+        ("holiday_hours", "REAL DEFAULT 0"),
+        ("overtime_over_60h", "REAL DEFAULT 0"),
+        ("night_pay", "REAL DEFAULT 0"),
+        ("holiday_pay", "REAL DEFAULT 0"),
+        ("overtime_over_60h_pay", "REAL DEFAULT 0"),
+    ]
 
-    try:
-        cursor.execute("ALTER TABLE payroll_records ADD COLUMN paid_leave_amount REAL DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    for col_name, col_type in new_columns:
+        try:
+            cursor.execute(f"ALTER TABLE payroll_records ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
 
     # Create indexes for performance
     cursor.execute("""
