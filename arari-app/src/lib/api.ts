@@ -209,10 +209,17 @@ export interface PayrollRecord {
   work_days: number
   work_hours: number
   overtime_hours: number
+  night_hours?: number
+  holiday_hours?: number
+  overtime_over_60h?: number
   paid_leave_hours: number
   paid_leave_days: number
+  paid_leave_amount?: number
   base_salary: number
   overtime_pay: number
+  night_pay?: number
+  holiday_pay?: number
+  overtime_over_60h_pay?: number
   transport_allowance: number
   other_allowances: number
   gross_salary: number
@@ -225,6 +232,7 @@ export interface PayrollRecord {
   billing_amount: number
   company_social_insurance: number
   company_employment_insurance: number
+  company_workers_comp?: number
   total_company_cost: number
   gross_profit: number
   profit_margin: number
