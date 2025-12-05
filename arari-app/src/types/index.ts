@@ -25,6 +25,7 @@ export interface PayrollRecord {
   overtimeHours: number       // 残業時間
   paidLeaveHours: number      // 有給時間
   paidLeaveDays: number       // 有給日数
+  paidLeaveAmount: number     // 有給金額（円）- Excelから直接値
   baseSalary: number          // 基本給
   overtimePay: number         // 残業代
   transportAllowance: number  // 通勤費

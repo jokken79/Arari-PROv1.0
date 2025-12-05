@@ -45,6 +45,7 @@ class PayrollRecordBase(BaseModel):
     overtime_hours: float = Field(0, description="残業時間")
     paid_leave_hours: float = Field(0, description="有給時間")
     paid_leave_days: float = Field(0, description="有給日数")
+    paid_leave_amount: float = Field(0, description="有給金額（円）- 直接値がある場合")
     base_salary: float = Field(0, description="基本給")
     overtime_pay: float = Field(0, description="残業代")
     transport_allowance: float = Field(0, description="通勤費")

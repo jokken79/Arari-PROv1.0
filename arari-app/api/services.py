@@ -176,8 +176,14 @@ class PayrollService:
         # 労災保険（会社負担100%）= 0.3% of gross salary (派遣業)
         company_workers_comp = getattr(record, 'company_workers_comp', None) or round(record.gross_salary * self.WORKERS_COMP_RATE)
 
-        # 有給コスト = paid leave hours × hourly rate
-        paid_leave_cost = record.paid_leave_hours * hourly_rate
+        # 有給コスト: Usar valor directo si existe, sino calcular por horas
+        # Si el Excel trae 有給金額 (valor en yenes), usar ese directamente
+        # Si solo trae 有給時間 (horas), calcular: horas × 時給
+        paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
+        if paid_leave_amount > 0:
+            paid_leave_cost = paid_leave_amount  # Usar valor directo del Excel
+        else:
+            paid_leave_cost = record.paid_leave_hours * hourly_rate  # Calcular por horas
 
         # NOTE: transport_allowance is already included in gross_salary (総支給額)
         # DO NOT add it again to avoid double counting
@@ -204,15 +210,16 @@ class PayrollService:
         cursor.execute("""
             INSERT OR REPLACE INTO payroll_records (
                 employee_id, period, work_days, work_hours, overtime_hours,
-                paid_leave_hours, paid_leave_days, base_salary, overtime_pay,
+                paid_leave_hours, paid_leave_days, paid_leave_amount, base_salary, overtime_pay,
                 transport_allowance, other_allowances, gross_salary,
                 social_insurance, employment_insurance, income_tax, resident_tax,
                 other_deductions, net_salary, billing_amount, company_social_insurance,
                 company_employment_insurance, company_workers_comp, total_company_cost, gross_profit, profit_margin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.employee_id, record.period, record.work_days, record.work_hours,
             record.overtime_hours, record.paid_leave_hours, record.paid_leave_days,
+            paid_leave_amount,  # Guardar el valor en yenes si existe
             record.base_salary, record.overtime_pay, record.transport_allowance,
             record.other_allowances, record.gross_salary, record.social_insurance,
             record.employment_insurance, record.income_tax, record.resident_tax,
@@ -470,6 +477,11 @@ class ExcelParser:
         '残業時間': 'overtime_hours',
         '有給時間': 'paid_leave_hours',
         '有給日数': 'paid_leave_days',
+        '有給金額': 'paid_leave_amount',
+        '有給支給額': 'paid_leave_amount',
+        '有給手当': 'paid_leave_amount',
+        '有休金額': 'paid_leave_amount',
+        '有休支給': 'paid_leave_amount',
         '基本給': 'base_salary',
         '残業代': 'overtime_pay',
         '通勤費': 'transport_allowance',
@@ -567,6 +579,7 @@ class ExcelParser:
             'overtime_hours': 0,
             'paid_leave_hours': 0,
             'paid_leave_days': 0,
+            'paid_leave_amount': 0,
             'base_salary': 0,
             'overtime_pay': 0,
             'transport_allowance': 0,

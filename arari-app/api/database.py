@@ -58,6 +58,7 @@ def init_db():
             overtime_hours REAL DEFAULT 0,
             paid_leave_hours REAL DEFAULT 0,
             paid_leave_days REAL DEFAULT 0,
+            paid_leave_amount REAL DEFAULT 0,
             base_salary REAL DEFAULT 0,
             overtime_pay REAL DEFAULT 0,
             transport_allowance REAL DEFAULT 0,
@@ -82,9 +83,14 @@ def init_db():
         )
     """)
 
-    # Add column if not exists (for existing databases)
+    # Add columns if not exists (for existing databases)
     try:
         cursor.execute("ALTER TABLE payroll_records ADD COLUMN company_workers_comp REAL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    try:
+        cursor.execute("ALTER TABLE payroll_records ADD COLUMN paid_leave_amount REAL DEFAULT 0")
     except sqlite3.OperationalError:
         pass  # Column already exists
 
