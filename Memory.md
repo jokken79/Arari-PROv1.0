@@ -27,8 +27,27 @@ Este archivo registra el historial de cambios significativos realizados en el re
 - Historial de cambios documentado para futuras sesiones.
 
 **TODO / Próximos pasos**
-- [ ] REVISAR: Confirmar si imágenes IMG_7706/7707/7708 deben moverse a `docs/assets/`
-- [ ] REVISAR: Verificar si `templates/index.html` se usa o puede eliminarse
+- [x] ~~REVISAR: Confirmar si imágenes IMG_7706/7707/7708 deben moverse a `docs/assets/`~~ → Movidas
+- [x] ~~REVISAR: Verificar si `templates/index.html` se usa o puede eliminarse~~ → Eliminado
+- [ ] Considerar añadir `.env.instance01-09` si se necesitan las 10 instancias Docker
+
+---
+
+## [2025-12-07] – Claude (Arquitecto de Repo) - Limpieza
+
+**Resumen breve**
+- Limpieza de archivos: mover imágenes de referencia y eliminar prototipo obsoleto.
+
+**Cambios realizados**
+- `IMG_7706.jpeg`, `IMG_7707.png`, `IMG_7708.jpeg` → `docs/assets/`: Movidas imágenes de referencia usadas para ajustar cálculos de márgenes.
+- `templates/` → ELIMINADO: Carpeta con prototipo HTML antiguo (Chart.js) que ya no se usa. El proyecto ahora usa Next.js + Recharts.
+
+**Impacto**
+- Raíz del repo más limpia (solo archivos esenciales).
+- Imágenes de referencia organizadas en `docs/assets/`.
+- Eliminado código muerto que podría causar confusión.
+
+**TODO / Próximos pasos**
 - [ ] Considerar añadir `.env.instance01-09` si se necesitan las 10 instancias Docker
 
 ---
