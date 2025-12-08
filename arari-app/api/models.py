@@ -42,11 +42,18 @@ class PayrollRecordBase(BaseModel):
     period: str = Field(..., description="対象期間 (例: 2025年1月)")
     work_days: int = Field(0, description="出勤日数")
     work_hours: float = Field(0, description="労働時間")
-    overtime_hours: float = Field(0, description="残業時間")
+    overtime_hours: float = Field(0, description="残業時間（≤60h部分）")
+    night_hours: float = Field(0, description="深夜時間")
+    holiday_hours: float = Field(0, description="休日時間")
+    overtime_over_60h: float = Field(0, description="60H過残業（60h超え部分）")
     paid_leave_hours: float = Field(0, description="有給時間")
     paid_leave_days: float = Field(0, description="有給日数")
+    paid_leave_amount: float = Field(0, description="有給金額（円）- 直接値がある場合")
     base_salary: float = Field(0, description="基本給")
-    overtime_pay: float = Field(0, description="残業代")
+    overtime_pay: float = Field(0, description="残業代（≤60h: ×1.25）")
+    night_pay: float = Field(0, description="深夜手当（本人: ×0.25）")
+    holiday_pay: float = Field(0, description="休日手当（×1.35）")
+    overtime_over_60h_pay: float = Field(0, description="60H過残業手当（×1.5）")
     transport_allowance: float = Field(0, description="通勤費")
     other_allowances: float = Field(0, description="その他手当")
     gross_salary: float = Field(0, description="総支給額")
@@ -62,6 +69,7 @@ class PayrollRecordCreate(PayrollRecordBase):
     # Optional calculated fields - will be calculated if not provided
     company_social_insurance: Optional[float] = None
     company_employment_insurance: Optional[float] = None
+    company_workers_comp: Optional[float] = None  # 労災保険（会社負担100%）
     total_company_cost: Optional[float] = None
     gross_profit: Optional[float] = None
     profit_margin: Optional[float] = None
@@ -74,6 +82,7 @@ class PayrollRecord(PayrollRecordBase):
     id: Optional[int] = None
     company_social_insurance: float = Field(0, description="社会保険（会社負担）")
     company_employment_insurance: float = Field(0, description="雇用保険（会社負担）")
+    company_workers_comp: float = Field(0, description="労災保険（会社負担100%）")
     total_company_cost: float = Field(0, description="会社総コスト")
     gross_profit: float = Field(0, description="粗利")
     profit_margin: float = Field(0, description="マージン率")

@@ -14,6 +14,119 @@ import type {
 // Sample data removed - always use backend
 import { employeeApi, payrollApi, statisticsApi } from '@/lib/api'
 
+// Generate dashboard stats from local data (fallback)
+function generateDashboardStats(employees: Employee[], payrollRecords: PayrollRecord[]): DashboardStats {
+  if (payrollRecords.length === 0) {
+    return {
+      totalEmployees: employees.length,
+      activeEmployees: employees.filter(e => e.status === 'active').length,
+      totalCompanies: new Set(employees.map(e => e.dispatchCompany)).size,
+      averageProfit: 0,
+      averageMargin: 0,
+      totalMonthlyRevenue: 0,
+      totalMonthlyCost: 0,
+      totalMonthlyProfit: 0,
+      profitTrend: [],
+      profitDistribution: [],
+      topCompanies: [],
+      recentPayrolls: [],
+    }
+  }
+
+  // Get latest period
+  const periods = Array.from(new Set(payrollRecords.map(r => r.period))).sort().reverse()
+  const latestPeriod = periods[0]
+  const latestRecords = payrollRecords.filter(r => r.period === latestPeriod)
+
+  // Calculate totals
+  const totalRevenue = latestRecords.reduce((sum, r) => sum + r.billingAmount, 0)
+  const totalCost = latestRecords.reduce((sum, r) => sum + r.totalCompanyCost, 0)
+  const totalProfit = latestRecords.reduce((sum, r) => sum + r.grossProfit, 0)
+  const avgMargin = latestRecords.length > 0
+    ? latestRecords.reduce((sum, r) => sum + r.profitMargin, 0) / latestRecords.length
+    : 0
+  const avgProfit = latestRecords.length > 0 ? totalProfit / latestRecords.length : 0
+
+  // Get unique companies
+  const companies = Array.from(new Set(employees.map(e => e.dispatchCompany)))
+
+  // Calculate company summaries
+  const topCompanies: CompanySummary[] = companies.map(company => {
+    const companyEmployees = employees.filter(e => e.dispatchCompany === company)
+    const companyRecords = latestRecords.filter(r =>
+      companyEmployees.some(e => e.employeeId === r.employeeId)
+    )
+
+    const companyProfit = companyRecords.reduce((sum, r) => sum + r.grossProfit, 0)
+    const companyMargin = companyRecords.length > 0
+      ? companyRecords.reduce((sum, r) => sum + r.profitMargin, 0) / companyRecords.length
+      : 0
+
+    return {
+      companyName: company,
+      employeeCount: companyEmployees.length,
+      averageHourlyRate: companyEmployees.length > 0
+        ? companyEmployees.reduce((sum, e) => sum + e.hourlyRate, 0) / companyEmployees.length
+        : 0,
+      averageBillingRate: companyEmployees.length > 0
+        ? companyEmployees.reduce((sum, e) => sum + e.billingRate, 0) / companyEmployees.length
+        : 0,
+      averageProfit: companyRecords.length > 0 ? companyProfit / companyRecords.length : 0,
+      averageMargin: companyMargin,
+      totalMonthlyProfit: companyProfit,
+      employees: companyEmployees,
+    }
+  }).sort((a, b) => b.totalMonthlyProfit - a.totalMonthlyProfit)
+
+  // Calculate profit trend (last 6 months)
+  const profitTrend = periods.slice(0, 6).map(period => {
+    const periodRecords = payrollRecords.filter(r => r.period === period)
+    const revenue = periodRecords.reduce((sum, r) => sum + r.billingAmount, 0)
+    const cost = periodRecords.reduce((sum, r) => sum + r.totalCompanyCost, 0)
+    const profit = periodRecords.reduce((sum, r) => sum + r.grossProfit, 0)
+    const margin = periodRecords.length > 0
+      ? periodRecords.reduce((sum, r) => sum + r.profitMargin, 0) / periodRecords.length
+      : 0
+
+    return { period, revenue, cost, profit, margin }
+  }).reverse()
+
+  // Calculate profit distribution
+  const marginRanges = [
+    { range: '0-10%', min: 0, max: 10 },
+    { range: '10-20%', min: 10, max: 20 },
+    { range: '20-30%', min: 20, max: 30 },
+    { range: '30-40%', min: 30, max: 40 },
+    { range: '40%+', min: 40, max: 100 },
+  ]
+
+  const profitDistribution = marginRanges.map(range => {
+    const count = latestRecords.filter(
+      r => r.profitMargin >= range.min && r.profitMargin < range.max
+    ).length
+    return {
+      range: range.range,
+      count,
+      percentage: latestRecords.length > 0 ? (count / latestRecords.length) * 100 : 0,
+    }
+  })
+
+  return {
+    totalEmployees: employees.length,
+    activeEmployees: employees.filter(e => e.status === 'active').length,
+    totalCompanies: companies.length,
+    averageProfit: avgProfit,
+    averageMargin: avgMargin,
+    totalMonthlyRevenue: totalRevenue,
+    totalMonthlyCost: totalCost,
+    totalMonthlyProfit: totalProfit,
+    profitTrend,
+    profitDistribution,
+    topCompanies,
+    recentPayrolls: latestRecords.slice(0, 10),
+  }
+}
+
 interface AppState {
   // Theme
   theme: Theme
@@ -101,14 +214,16 @@ export const useAppStore = create<AppState>()(
             dashboardStats: {
               totalEmployees: 0,
               activeEmployees: 0,
-              totalRevenue: 0,
-              totalCost: 0,
-              totalProfit: 0,
+              totalCompanies: 0,
+              averageProfit: 0,
               averageMargin: 0,
-              monthlyTrend: [],
-              employeeTypeBreakdown: { haken: 0, ukeoi: 0 },
-              topPerformers: [],
-              companyBreakdown: [],
+              totalMonthlyRevenue: 0,
+              totalMonthlyCost: 0,
+              totalMonthlyProfit: 0,
+              profitTrend: [],
+              profitDistribution: [],
+              topCompanies: [],
+              recentPayrolls: [],
             },
             useBackend: false,
           })
@@ -159,10 +274,17 @@ export const useAppStore = create<AppState>()(
             workDays: rec.work_days,
             workHours: rec.work_hours,
             overtimeHours: rec.overtime_hours,
+            nightHours: rec.night_hours || 0,
+            holidayHours: rec.holiday_hours || 0,
+            overtimeOver60h: rec.overtime_over_60h || 0,
             paidLeaveHours: rec.paid_leave_hours,
             paidLeaveDays: rec.paid_leave_days,
+            paidLeaveAmount: rec.paid_leave_amount || 0,
             baseSalary: rec.base_salary,
             overtimePay: rec.overtime_pay,
+            nightPay: rec.night_pay || 0,
+            holidayPay: rec.holiday_pay || 0,
+            overtimeOver60hPay: rec.overtime_over_60h_pay || 0,
             transportAllowance: rec.transport_allowance,
             otherAllowances: rec.other_allowances,
             grossSalary: rec.gross_salary,
@@ -175,6 +297,7 @@ export const useAppStore = create<AppState>()(
             billingAmount: rec.billing_amount,
             companySocialInsurance: rec.company_social_insurance,
             companyEmploymentInsurance: rec.company_employment_insurance,
+            companyWorkersComp: rec.company_workers_comp || 0,
             totalCompanyCost: rec.total_company_cost,
             grossProfit: rec.gross_profit,
             profitMargin: rec.profit_margin,
@@ -284,6 +407,7 @@ export const useAppStore = create<AppState>()(
           totalSalaryCost: periodRecords.reduce((sum, r) => sum + r.grossSalary, 0),
           totalSocialInsurance: periodRecords.reduce((sum, r) => sum + r.companySocialInsurance, 0),
           totalEmploymentInsurance: periodRecords.reduce((sum, r) => sum + r.companyEmploymentInsurance, 0),
+          totalWorkersComp: periodRecords.reduce((sum, r) => sum + (r.companyWorkersComp || 0), 0),
           totalPaidLeaveCost: periodRecords.reduce((sum, r) => sum + (r.paidLeaveHours * (employees.find(e => e.employeeId === r.employeeId)?.hourlyRate || 0)), 0),
           totalTransportCost: periodRecords.reduce((sum, r) => sum + r.transportAllowance, 0),
           totalCompanyCost: periodRecords.reduce((sum, r) => sum + r.totalCompanyCost, 0),

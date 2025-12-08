@@ -75,54 +75,104 @@ export function calculateMarginRate(billingRate: number, hourlyRate: number): nu
   return ((billingRate - hourlyRate) / billingRate) * 100
 }
 
+// Insurance rates (2024年度)
+export const INSURANCE_RATES = {
+  EMPLOYMENT: 0.0095,    // 雇用保険（会社負担）0.95%
+  WORKERS_COMP: 0.003,   // 労災保険 0.3% (派遣業)
+}
+
+// Billing multipliers (what factory pays us)
+export const BILLING_MULTIPLIERS = {
+  OVERTIME_NORMAL: 1.25,      // 残業 ≤60h: ×1.25
+  OVERTIME_OVER_60H: 1.5,     // 残業 >60h: ×1.5
+  NIGHT: 0.25,                // 深夜: +0.25 (extra on top)
+  HOLIDAY: 1.35,              // 休日: ×1.35
+}
+
+// Calculate billing amount from hours and billing rate
+export interface BillingParams {
+  workHours: number           // 労働時間
+  overtimeHours: number       // 残業時間 (≤60h)
+  overtimeOver60h: number     // 60H過残業
+  nightHours: number          // 深夜時間
+  holidayHours: number        // 休日時間
+  billingRate: number         // 単価
+}
+
+export function calculateBillingAmount(params: BillingParams): number {
+  const { workHours, overtimeHours, overtimeOver60h, nightHours, holidayHours, billingRate } = params
+
+  if (billingRate <= 0) return 0
+
+  // 基本時間: 単価 × work_hours
+  const baseBilling = workHours * billingRate
+
+  // 残業 ≤60h: 単価 × 1.25
+  const overtimeBilling = overtimeHours * billingRate * BILLING_MULTIPLIERS.OVERTIME_NORMAL
+
+  // 残業 >60h: 単価 × 1.5
+  const overtimeOver60hBilling = overtimeOver60h * billingRate * BILLING_MULTIPLIERS.OVERTIME_OVER_60H
+
+  // 深夜: 単価 × 0.25 (extra)
+  const nightBilling = nightHours * billingRate * BILLING_MULTIPLIERS.NIGHT
+
+  // 休日: 単価 × 1.35
+  const holidayBilling = holidayHours * billingRate * BILLING_MULTIPLIERS.HOLIDAY
+
+  return Math.round(baseBilling + overtimeBilling + overtimeOver60hBilling + nightBilling + holidayBilling)
+}
+
 // Calculate real cost including social insurance
 export interface RealCostParams {
-  baseSalary: number           // 基本給
+  grossSalary: number          // 総支給額 (includes transport)
   socialInsurance: number      // 社会保険 (employee portion - company pays same amount)
-  employmentInsurance: number  // 雇用保険
+  employmentInsurance?: number // 雇用保険 (optional, will calculate)
+  workersComp?: number         // 労災保険 (optional, will calculate)
   paidLeaveHours: number       // 有給休暇時間
   hourlyRate: number           // 時給
-  transportAllowance: number   // 通勤費
 }
 
 export function calculateRealCost(params: RealCostParams): number {
   const {
-    baseSalary,
-    socialInsurance,       // Company pays same amount as employee
-    employmentInsurance,
+    grossSalary,
+    socialInsurance,       // Company pays same amount as employee (労使折半)
     paidLeaveHours,
     hourlyRate,
-    transportAllowance,
   } = params
 
+  // Calculate company insurance costs
+  const companyEmploymentIns = params.employmentInsurance ?? Math.round(grossSalary * INSURANCE_RATES.EMPLOYMENT)
+  const companyWorkersComp = params.workersComp ?? Math.round(grossSalary * INSURANCE_RATES.WORKERS_COMP)
+
+  // NOTE: transportAllowance is already included in grossSalary
   return (
-    baseSalary +
-    socialInsurance +        // Company's portion = employee's portion
-    employmentInsurance +
-    (paidLeaveHours * hourlyRate) +
-    transportAllowance
+    grossSalary +
+    socialInsurance +           // Company's portion = employee's portion
+    companyEmploymentIns +      // 雇用保険 0.95%
+    companyWorkersComp +        // 労災保険 0.3%
+    (paidLeaveHours * hourlyRate)
   )
 }
 
 // Calculate real 粗利 with all costs
 export interface RealArariParams {
   revenue: number            // 売上 (billing_rate × hours)
-  baseSalary: number         // 給与
-  socialInsurance: number    // 社会保険 (company portion)
-  employmentInsurance: number // 雇用保険
+  grossSalary: number        // 総支給額 (includes transport)
+  socialInsurance: number    // 社会保険 (company portion = employee portion)
+  employmentInsurance?: number // 雇用保険 (optional)
+  workersComp?: number       // 労災保険 (optional)
   paidLeaveHours: number     // 有給時間
   hourlyRate: number         // 時給
-  transportAllowance: number // 通勤費
 }
 
 export function calculateRealArari(params: RealArariParams): number {
   const cost = calculateRealCost({
-    baseSalary: params.baseSalary,
+    grossSalary: params.grossSalary,
     socialInsurance: params.socialInsurance,
     employmentInsurance: params.employmentInsurance,
+    workersComp: params.workersComp,
     paidLeaveHours: params.paidLeaveHours,
     hourlyRate: params.hourlyRate,
-    transportAllowance: params.transportAllowance,
   })
 
   return params.revenue - cost

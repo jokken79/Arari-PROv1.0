@@ -5,14 +5,20 @@ Handles complex multi-sheet, multi-employee layout where:
 - Each file has multiple sheets (1 summary + 25 company sheets)
 - Each company sheet has multiple employees side-by-side
 - Each employee occupies ~14 columns with data in fixed row positions
+
+Multipliers for billing calculation:
+- 基本時間: 単価 × hours
+- 残業 (≤60h): 単価 × 1.25
+- 残業 (>60h): 単価 × 1.5
+- 深夜 (factory): 単価 × 1.25 (extra 0.25 on top of regular)
+- 休日: 単価 × 1.35
 """
 
 import openpyxl
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from io import BytesIO
 from models import PayrollRecordCreate
-from employee_rates import get_rates_loader
 
 
 class SalaryStatementParser:
@@ -22,56 +28,105 @@ class SalaryStatementParser:
     EMPLOYEE_COLUMN_WIDTH = 14
 
     # Row positions for data extraction (1-indexed)
-    # Verified from actual file structure
+    # ================================================
+    # IMPORTANT: Adjust these values based on your actual Excel structure
+    # You can check your Excel file and modify the row numbers here
+    # ================================================
     ROW_POSITIONS = {
-        'period': 5,          # "2025年1月分(2月17日支給)"
-        'employee_id': 6,     # 6-digit employee ID
-        'name': 7,            # Employee name
-        'work_days': 11,      # 出勤日数
-        'paid_leave_days': 12,  # 有給日数 (row 12, offset 5)
-        'work_hours': 13,     # 労働時間
-        'overtime_hours': 14, # 残業時間
-        'base_salary': 16,    # 基本給
-        'overtime_pay': 17,   # 残業代
-        'other_allowances': 18,  # その他手当
-        'paid_leave_payment': 21,  # 有給休暇支給額
-        'transport_allowance': 22,  # 通勤費
-        'gross_salary': 30,   # 支給合計
-        'health_insurance': 31,    # 健康保険料
-        'pension': 32,             # 厚生年金
-        'employment_insurance': 33, # 雇用保険料
-        'social_insurance': 34,    # 社会保険料計 (TOTAL)
-        'resident_tax': 35,        # 住民税
-        'net_salary': 36,          # 差引支給額 (final net)
+        # Header info
+        'period': 5,              # "2025年1月分(2月17日支給)"
+        'employee_id': 6,         # 6-digit employee ID
+        'name': 7,                # Employee name
+
+        # Time data (時間データ)
+        'work_days': 11,          # 出勤日数
+        'paid_leave_days': 12,    # 有給日数
+        'work_hours': 13,         # 労働時間 (normal hours)
+        'overtime_hours': 14,     # 残業時間 (≤60h)
+        'night_hours': 15,        # 深夜時間 (if available, otherwise 0)
+        'holiday_hours': 16,      # 休日時間 (if available, otherwise 0)
+        'overtime_over_60h': 17,  # 60H過残業 (if available, otherwise 0)
+
+        # Salary amounts (給与)
+        'base_salary': 18,        # 基本給
+        'overtime_pay': 19,       # 残業代 (≤60h × 1.25)
+        'night_pay': 20,          # 深夜手当 (本人: ×0.25)
+        'holiday_pay': 21,        # 休日手当 (×1.35)
+        'overtime_over_60h_pay': 22,  # 60H過残業手当 (×1.5)
+        'other_allowances': 23,   # その他手当
+        'transport_allowance': 24,  # 通勤費
+        'paid_leave_amount': 25,  # 有給金額 (direct value)
+
+        # Deductions (控除)
+        'social_insurance': 26,   # 社会保険
+        'employment_insurance': 27,  # 雇用保険
+        'income_tax': 28,         # 所得税
+        'resident_tax': 29,       # 住民税
+
+        # Totals
+        'gross_salary': 30,       # 総支給額
+        'net_salary': 31,         # 差引支給額
     }
 
     # Column offsets within an employee block
     # First employee block starts at col 1, employee_id at col 10
     # So offset = 9
-    # Period is at col 3 in this example = offset 2
-    # Name is at col 3 = offset 2
-    # New fields (rows 31-36) use offset 3 (same as other salary data)
     COLUMN_OFFSETS = {
-        'period': 2,          # [3] = col 3 - base 1
-        'employee_id': 9,     # [10] = col 10 - base 1
-        'name': 2,            # [3] = col 3 - base 1
-        'work_days': 5,       # [6] from data = col 6 - base 1
-        'paid_leave_days': 5,  # offset 5 (same as work_days offset)
-        'work_hours': 3,      # [4] from data = col 4 - base 1
-        'overtime_hours': 3,  # [4] from data
-        'base_salary': 3,     # [4] from data
-        'overtime_pay': 3,    # [4] from data
-        'other_allowances': 3,  # [4] from data
-        'paid_leave_payment': 3,  # 有給休暇支給額
-        'transport_allowance': 3,  # [4] from data
-        'gross_salary': 3,    # 支給合計
-        'health_insurance': 3,     # 健康保険料
-        'pension': 3,              # 厚生年金
-        'employment_insurance': 3, # 雇用保険料
-        'social_insurance': 3,     # 社会保険料計
-        'resident_tax': 3,         # 住民税
-        'net_salary': 3,      # 差引支給額
+        'period': 2,              # col 3 - base 1
+        'employee_id': 9,         # col 10 - base 1
+        'name': 2,                # col 3 - base 1
+        'work_days': 5,           # col 6 - base 1
+        'paid_leave_days': 10,    # col 11 - base 1
+        'work_hours': 3,          # col 4 - base 1
+        'overtime_hours': 3,
+        'night_hours': 3,
+        'holiday_hours': 3,
+        'overtime_over_60h': 3,
+        'base_salary': 3,
+        'overtime_pay': 3,
+        'night_pay': 3,
+        'holiday_pay': 3,
+        'overtime_over_60h_pay': 3,
+        'other_allowances': 3,
+        'transport_allowance': 3,
+        'paid_leave_amount': 3,
+        'social_insurance': 3,
+        'employment_insurance': 3,
+        'income_tax': 3,
+        'resident_tax': 3,
+        'gross_salary': 3,
+        'net_salary': 3,
     }
+
+    # Alternative row positions for ChinginGenerator format
+    # These are the actual rows from the images (IMG_7706, IMG_7707)
+    ROW_POSITIONS_CHINGIN = {
+        'period': 5,
+        'employee_id': 6,
+        'name': 7,
+        'work_days': 11,
+        'paid_leave_days': 12,
+        'work_hours': 13,         # 労働時間
+        'overtime_hours': 14,     # 残業時間
+        'base_salary': 16,        # 基本給
+        'overtime_pay': 17,       # 残業代
+        'other_allowances': 18,   # その他手当
+        'transport_allowance': 21,  # 通勤費
+        'net_salary': 30,         # 差引支給額
+    }
+
+    def __init__(self, use_chingin_format: bool = True):
+        """
+        Initialize parser
+
+        Args:
+            use_chingin_format: If True, use ChinginGenerator row positions
+        """
+        self.use_chingin_format = use_chingin_format
+        if use_chingin_format:
+            # Merge ChinginGenerator positions with defaults
+            for key, value in self.ROW_POSITIONS_CHINGIN.items():
+                self.ROW_POSITIONS[key] = value
 
     def parse(self, content: bytes) -> List[PayrollRecordCreate]:
         """
@@ -91,11 +146,10 @@ class SalaryStatementParser:
 
         records = []
 
-        # Process all sheets except summary (集計) and subcontracting (請負)
-        # 請負 employees don't generate billing from factories
+        # Process all sheets except the summary sheet (集計)
         for sheet_name in wb.sheetnames:
-            if sheet_name == '集計' or sheet_name == 'Summary' or '請負' in sheet_name:
-                continue  # Skip summary and subcontracting sheets
+            if sheet_name == '集計' or sheet_name == 'Summary':
+                continue  # Skip summary sheets
 
             try:
                 ws = wb[sheet_name]
@@ -105,6 +159,7 @@ class SalaryStatementParser:
                 print(f"Warning: Error parsing sheet '{sheet_name}': {e}")
                 continue
 
+        print(f"📊 Parsed {len(records)} employee records from Excel")
         return records
 
     def _parse_sheet(self, ws, sheet_name: str) -> List[PayrollRecordCreate]:
@@ -113,7 +168,7 @@ class SalaryStatementParser:
 
         Args:
             ws: openpyxl worksheet
-            sheet_name: Name of the sheet (派遣先企業 = dispatch company)
+            sheet_name: Name of the sheet for logging
 
         Returns:
             List of PayrollRecordCreate objects from this sheet
@@ -127,9 +182,9 @@ class SalaryStatementParser:
             print(f"  Warning: No employee IDs found in sheet '{sheet_name}'")
             return records
 
-        # Extract data for each employee, passing the sheet_name as dispatch_company
+        # Extract data for each employee
         for col_idx in employee_cols:
-            record = self._extract_employee_data(ws, col_idx, sheet_name)
+            record = self._extract_employee_data(ws, col_idx)
             if record:
                 records.append(record)
 
@@ -141,8 +196,6 @@ class SalaryStatementParser:
 
         Employee IDs are 6-digit numbers appearing in row 6 at columns: 10, 24, 38, 52, ...
         Each employee block occupies ~14 columns starting from column: 1, 15, 29, 43, ...
-
-        We find employee ID positions, then calculate the base column of each block
 
         Returns:
             List of base column indices (1-indexed) for each employee block
@@ -161,9 +214,6 @@ class SalaryStatementParser:
                 emp_id_str = str(cell_value).strip()
                 if emp_id_str.isdigit() and len(emp_id_str) == 6:
                     # Found an employee ID at column col
-                    # The employee IDs appear at columns: 10, 24, 38, 52...
-                    # Each block starts 9 columns before the employee ID
-                    # So: block 1 starts at 10-9=1, block 2 starts at 24-9=15, etc.
                     base_col = col - 9
                     if base_col > 0 and base_col not in columns:
                         columns.append(base_col)
@@ -172,14 +222,13 @@ class SalaryStatementParser:
 
         return sorted(columns)
 
-    def _extract_employee_data(self, ws, base_col: int, dispatch_company: str = '') -> Optional[PayrollRecordCreate]:
+    def _extract_employee_data(self, ws, base_col: int) -> Optional[PayrollRecordCreate]:
         """
         Extract data for one employee from a specific column position
 
         Args:
             ws: openpyxl worksheet
             base_col: Starting column (1-indexed) of the employee block
-            dispatch_company: Name of the Excel sheet (派遣先企業)
 
         Returns:
             PayrollRecordCreate object or None if extraction fails
@@ -204,81 +253,116 @@ class SalaryStatementParser:
             if not employee_id or not employee_id.isdigit():
                 return None
 
-            # Extract employee name from row 7
-            name_cell = ws.cell(
-                row=self.ROW_POSITIONS['name'],
-                column=base_col + self.COLUMN_OFFSETS['name']
-            )
-            employee_name = str(name_cell.value or '').strip()
+            # Extract time data
+            work_hours = self._get_value(ws, 'work_hours', base_col)
+            overtime_hours = self._get_value(ws, 'overtime_hours', base_col)
+            night_hours = self._get_value(ws, 'night_hours', base_col)
+            holiday_hours = self._get_value(ws, 'holiday_hours', base_col)
+            overtime_over_60h = self._get_value(ws, 'overtime_over_60h', base_col)
 
-            # Load employee rates (時給 and 単価) from 社員台帳
-            rates_loader = get_rates_loader()
-            hourly_rate, billing_rate = rates_loader.get_rates(employee_id)
+            # Extract salary data
+            base_salary = self._get_value(ws, 'base_salary', base_col)
+            overtime_pay = self._get_value(ws, 'overtime_pay', base_col)
+            night_pay = self._get_value(ws, 'night_pay', base_col)
+            holiday_pay = self._get_value(ws, 'holiday_pay', base_col)
+            overtime_over_60h_pay = self._get_value(ws, 'overtime_over_60h_pay', base_col)
+            other_allowances = self._get_value(ws, 'other_allowances', base_col)
+            transport_allowance = self._get_value(ws, 'transport_allowance', base_col)
+            paid_leave_amount = self._get_value(ws, 'paid_leave_amount', base_col)
 
-            # Extract numeric data from fixed row positions
-            paid_leave_days = self._get_numeric(ws, self.ROW_POSITIONS['paid_leave_days'], base_col + self.COLUMN_OFFSETS['paid_leave_days'])
+            # Extract deductions
+            social_insurance = self._get_value(ws, 'social_insurance', base_col)
+            employment_insurance = self._get_value(ws, 'employment_insurance', base_col)
+            income_tax = self._get_value(ws, 'income_tax', base_col)
+            resident_tax = self._get_value(ws, 'resident_tax', base_col)
 
-            # Extract deduction fields from Excel (rows 31-36)
-            health_insurance = self._get_numeric(ws, self.ROW_POSITIONS['health_insurance'], base_col + self.COLUMN_OFFSETS['health_insurance'])
-            pension = self._get_numeric(ws, self.ROW_POSITIONS['pension'], base_col + self.COLUMN_OFFSETS['pension'])
-            employment_insurance = self._get_numeric(ws, self.ROW_POSITIONS['employment_insurance'], base_col + self.COLUMN_OFFSETS['employment_insurance'])
-            social_insurance_total = self._get_numeric(ws, self.ROW_POSITIONS['social_insurance'], base_col + self.COLUMN_OFFSETS['social_insurance'])
-            resident_tax = self._get_numeric(ws, self.ROW_POSITIONS['resident_tax'], base_col + self.COLUMN_OFFSETS['resident_tax'])
+            # Extract days
+            work_days = self._get_value(ws, 'work_days', base_col)
+            paid_leave_days = self._get_value(ws, 'paid_leave_days', base_col)
 
-            # If social_insurance_total is 0, calculate from components
-            if social_insurance_total == 0:
-                social_insurance_total = health_insurance + pension + employment_insurance
+            # Get gross_salary from Excel if available, otherwise calculate
+            gross_salary_excel = self._get_value(ws, 'gross_salary', base_col)
+            if gross_salary_excel > 0:
+                gross_salary = gross_salary_excel
+            else:
+                gross_salary = (
+                    base_salary +
+                    overtime_pay +
+                    night_pay +
+                    holiday_pay +
+                    overtime_over_60h_pay +
+                    other_allowances +
+                    transport_allowance
+                )
 
-            # Calculate total hours for billing
-            total_hours = self._get_numeric(ws, self.ROW_POSITIONS['work_hours'], base_col + self.COLUMN_OFFSETS['work_hours'])
-            total_hours += self._get_numeric(ws, self.ROW_POSITIONS['overtime_hours'], base_col + self.COLUMN_OFFSETS['overtime_hours'])
+            net_salary = self._get_value(ws, 'net_salary', base_col)
+
+            # Calculate paid_leave_hours from days (8 hours per day)
+            paid_leave_hours = paid_leave_days * 8 if paid_leave_days > 0 else 0
 
             data = {
                 'employee_id': employee_id,
                 'period': period,
-                'dispatch_company': dispatch_company,  # 派遣先企業 (Excel sheet name)
-                'employee_name': employee_name,  # 氏名 from Excel
-                'work_days': self._get_numeric(ws, self.ROW_POSITIONS['work_days'], base_col + self.COLUMN_OFFSETS['work_days']),
-                'paid_leave_days': paid_leave_days,
-                'work_hours': self._get_numeric(ws, self.ROW_POSITIONS['work_hours'], base_col + self.COLUMN_OFFSETS['work_hours']),
-                'overtime_hours': self._get_numeric(ws, self.ROW_POSITIONS['overtime_hours'], base_col + self.COLUMN_OFFSETS['overtime_hours']),
-                'base_salary': self._get_numeric(ws, self.ROW_POSITIONS['base_salary'], base_col + self.COLUMN_OFFSETS['base_salary']),
-                'overtime_pay': self._get_numeric(ws, self.ROW_POSITIONS['overtime_pay'], base_col + self.COLUMN_OFFSETS['overtime_pay']),
-                'other_allowances': self._get_numeric(ws, self.ROW_POSITIONS['other_allowances'], base_col + self.COLUMN_OFFSETS['other_allowances']),
-                'transport_allowance': self._get_numeric(ws, self.ROW_POSITIONS['transport_allowance'], base_col + self.COLUMN_OFFSETS['transport_allowance']),
-                'net_salary': self._get_numeric(ws, self.ROW_POSITIONS['net_salary'], base_col + self.COLUMN_OFFSETS['net_salary']),
 
-                # Deduction fields extracted from Excel
-                'paid_leave_hours': paid_leave_days * 8,  # Calculate hours from days
-                'social_insurance': social_insurance_total,  # 社会保険料計 from Excel
-                'employment_insurance': employment_insurance,  # 雇用保険料 from Excel
-                'income_tax': 0,  # Not typically in this Excel format
-                'resident_tax': resident_tax,  # 住民税 from Excel
+                # Time data
+                'work_days': int(work_days),
+                'work_hours': work_hours,
+                'overtime_hours': overtime_hours,
+                'night_hours': night_hours,
+                'holiday_hours': holiday_hours,
+                'overtime_over_60h': overtime_over_60h,
+                'paid_leave_days': paid_leave_days,
+                'paid_leave_hours': paid_leave_hours,
+                'paid_leave_amount': paid_leave_amount,
+
+                # Salary
+                'base_salary': base_salary,
+                'overtime_pay': overtime_pay,
+                'night_pay': night_pay,
+                'holiday_pay': holiday_pay,
+                'overtime_over_60h_pay': overtime_over_60h_pay,
+                'other_allowances': other_allowances,
+                'transport_allowance': transport_allowance,
+                'gross_salary': gross_salary,
+
+                # Deductions
+                'social_insurance': social_insurance,
+                'employment_insurance': employment_insurance,
+                'income_tax': income_tax,
+                'resident_tax': resident_tax,
                 'other_deductions': 0,
-                # Calculate billing amount from employee's billing_rate (単価) and total hours
-                'billing_amount': billing_rate * total_hours if billing_rate > 0 else 0,
+                'net_salary': net_salary,
+
+                # Billing will be calculated by services.py using employee's 単価
+                'billing_amount': 0,
             }
 
-            # Read gross_salary directly from Excel (row 30)
-            gross_salary_from_excel = self._get_numeric(ws, self.ROW_POSITIONS['gross_salary'], base_col + self.COLUMN_OFFSETS['gross_salary'])
-
-            # Use Excel value if available, otherwise calculate
-            if gross_salary_from_excel > 0:
-                data['gross_salary'] = gross_salary_from_excel
-            else:
-                data['gross_salary'] = (
-                    data['base_salary'] +
-                    data['overtime_pay'] +
-                    data['other_allowances'] +
-                    data['transport_allowance']
-                )
-
-            # Create and return PayrollRecordCreate
             return PayrollRecordCreate(**data)
 
         except Exception as e:
-            # Silently return None - employee data may not be valid at this position
+            print(f"  Warning: Error extracting data at column {base_col}: {e}")
             return None
+
+    def _get_value(self, ws, field: str, base_col: int) -> float:
+        """
+        Get numeric value from a field
+
+        Args:
+            ws: openpyxl worksheet
+            field: Field name from ROW_POSITIONS
+            base_col: Base column for employee block
+
+        Returns:
+            Float value or 0.0 if not found
+        """
+        if field not in self.ROW_POSITIONS:
+            return 0.0
+
+        row = self.ROW_POSITIONS[field]
+        col_offset = self.COLUMN_OFFSETS.get(field, 3)  # Default offset 3
+        col = base_col + col_offset
+
+        return self._get_numeric(ws, row, col)
 
     def _parse_period(self, value) -> str:
         """
@@ -299,8 +383,8 @@ class SalaryStatementParser:
         match = re.search(r'(\d{4})年(\d{1,2})月', value_str)
         if match:
             year = match.group(1)
-            month = match.group(2).zfill(2)  # Pad with zero if needed
-            return f"{year}年{int(month)}月"  # Remove padding for standard format
+            month = match.group(2)
+            return f"{year}年{int(month)}月"
 
         return ''
 
@@ -332,8 +416,10 @@ class SalaryStatementParser:
             if not value_str:
                 return 0.0
 
+            # Remove common formatting
+            value_str = value_str.replace(',', '').replace('¥', '').replace(' ', '')
+
             return float(value_str)
 
         except (ValueError, TypeError, AttributeError):
-            # Return 0 if conversion fails
             return 0.0

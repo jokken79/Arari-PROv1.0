@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Users,
@@ -11,6 +11,8 @@ import {
   Wallet,
   Receipt,
   BadgeJapaneseYen,
+  RefreshCw,
+  Calendar,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -19,20 +21,27 @@ import { ProfitTrendChart } from '@/components/charts/ProfitTrendChart'
 import { ProfitDistributionChart } from '@/components/charts/ProfitDistributionChart'
 import { CompanyProfitChart } from '@/components/charts/CompanyProfitChart'
 import { CostBreakdownChart } from '@/components/charts/CostBreakdownChart'
+import { EmployeeRankingChart } from '@/components/charts/EmployeeRankingChart'
+import { FactoryComparisonChart } from '@/components/charts/FactoryComparisonChart'
+import { MarginGaugeChart } from '@/components/charts/MarginGaugeChart'
+import { HoursBreakdownChart } from '@/components/charts/HoursBreakdownChart'
 import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { useAppStore } from '@/store/appStore'
-import { formatYen, formatPercent } from '@/lib/utils'
-
-// Calculate trend from two periods
-function calculateTrend(current: number, previous: number): { value: number; label: string } | undefined {
-  if (!previous || previous === 0) return undefined
-  const change = ((current - previous) / previous) * 100
-  return { value: parseFloat(change.toFixed(1)), label: '前月比' }
-}
+import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { dashboardStats, employees, payrollRecords, loadSampleData } = useAppStore()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const {
+    dashboardStats,
+    employees,
+    payrollRecords,
+    selectedPeriod,
+    availablePeriods,
+    loadSampleData,
+    refreshFromBackend
+  } = useAppStore()
 
   useEffect(() => {
     if (employees.length === 0) {
@@ -40,9 +49,112 @@ export default function DashboardPage() {
     }
   }, [employees.length, loadSampleData])
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshFromBackend()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Calculate derived data for new charts
+  const chartData = useMemo(() => {
+    if (!dashboardStats || payrollRecords.length === 0) return null
+
+    // Get current period records
+    const currentPeriodRecords = payrollRecords.filter(r => r.period === selectedPeriod)
+
+    // Top and bottom performers
+    const recordsWithNames = currentPeriodRecords.map(r => {
+      const employee = employees.find(e => e.employeeId === r.employeeId)
+      return {
+        employeeId: r.employeeId,
+        name: employee?.name || r.employeeId,
+        company: employee?.dispatchCompany || '',
+        profit: r.grossProfit,
+        margin: r.profitMargin,
+        revenue: r.billingAmount,
+        cost: r.totalCompanyCost,
+      }
+    })
+
+    const sortedByProfit = [...recordsWithNames].sort((a, b) => b.profit - a.profit)
+    const topPerformers = sortedByProfit.slice(0, 5)
+    const bottomPerformers = sortedByProfit.slice(-5).reverse()
+
+    // Factory comparison data
+    const companyMap = new Map<string, {
+      revenue: number
+      cost: number
+      profit: number
+      margin: number
+      count: number
+    }>()
+
+    currentPeriodRecords.forEach(r => {
+      const employee = employees.find(e => e.employeeId === r.employeeId)
+      const company = employee?.dispatchCompany || 'Unknown'
+
+      if (!companyMap.has(company)) {
+        companyMap.set(company, { revenue: 0, cost: 0, profit: 0, margin: 0, count: 0 })
+      }
+
+      const data = companyMap.get(company)!
+      data.revenue += r.billingAmount
+      data.cost += r.totalCompanyCost
+      data.profit += r.grossProfit
+      data.margin += r.profitMargin
+      data.count += 1
+    })
+
+    const factoryData = Array.from(companyMap.entries()).map(([name, data]) => ({
+      companyName: name,
+      revenue: data.revenue,
+      cost: data.cost,
+      profit: data.profit,
+      margin: data.count > 0 ? data.margin / data.count : 0,
+      employeeCount: data.count,
+    })).sort((a, b) => b.profit - a.profit)
+
+    // Hours breakdown
+    const totalWorkHours = currentPeriodRecords.reduce((sum, r) => sum + r.workHours, 0)
+    const totalOvertimeHours = currentPeriodRecords.reduce((sum, r) => sum + r.overtimeHours, 0)
+    const totalOvertimeOver60h = currentPeriodRecords.reduce((sum, r) => sum + (r.overtimeOver60h || 0), 0)
+    const totalNightHours = currentPeriodRecords.reduce((sum, r) => sum + (r.nightHours || 0), 0)
+    const totalHolidayHours = currentPeriodRecords.reduce((sum, r) => sum + (r.holidayHours || 0), 0)
+
+    // Previous period margin for gauge
+    const periods = [...availablePeriods].sort().reverse()
+    const currentIndex = periods.indexOf(selectedPeriod)
+    let previousMargin: number | undefined
+
+    if (currentIndex > 0 && currentIndex < periods.length) {
+      const prevPeriod = periods[currentIndex + 1]
+      const prevRecords = payrollRecords.filter(r => r.period === prevPeriod)
+      if (prevRecords.length > 0) {
+        previousMargin = prevRecords.reduce((sum, r) => sum + r.profitMargin, 0) / prevRecords.length
+      }
+    }
+
+    return {
+      topPerformers,
+      bottomPerformers,
+      factoryData,
+      hoursData: {
+        workHours: totalWorkHours,
+        overtimeHours: totalOvertimeHours,
+        overtimeOver60h: totalOvertimeOver60h,
+        nightHours: totalNightHours,
+        holidayHours: totalHolidayHours,
+      },
+      previousMargin,
+    }
+  }, [dashboardStats, payrollRecords, employees, selectedPeriod, availablePeriods])
+
   if (!dashboardStats) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
           <p className="text-muted-foreground">データを読み込み中...</p>
@@ -51,30 +163,8 @@ export default function DashboardPage() {
     )
   }
 
-  // Calculate real trends from profitTrend data
-  const profitTrend = dashboardStats.profitTrend || []
-  const latestPeriod = profitTrend.length > 0 ? profitTrend[profitTrend.length - 1] : null
-  const previousPeriod = profitTrend.length > 1 ? profitTrend[profitTrend.length - 2] : null
-
-  const profitTrendCalc = latestPeriod && previousPeriod
-    ? calculateTrend(latestPeriod.profit, previousPeriod.profit)
-    : undefined
-
-  const revenueTrendCalc = latestPeriod && previousPeriod
-    ? calculateTrend(latestPeriod.revenue, previousPeriod.revenue)
-    : undefined
-
-  // Prepare cost breakdown data
-  const costBreakdownData = [
-    {
-      category: '直近月',
-      salary: dashboardStats.totalMonthlyCost * 0.65,
-      socialInsurance: dashboardStats.totalMonthlyCost * 0.20,
-      employmentInsurance: dashboardStats.totalMonthlyCost * 0.02,
-      paidLeave: dashboardStats.totalMonthlyCost * 0.05,
-      transport: dashboardStats.totalMonthlyCost * 0.08,
-    },
-  ]
+  // Check if we have real data
+  const hasData = payrollRecords.length > 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -87,97 +177,173 @@ export default function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
           >
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              ダッシュボード
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              粗利分析の概要とリアルタイム統計
-            </p>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                粗利ダッシュボード
+              </h1>
+              <p className="text-muted-foreground mt-1 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                {selectedPeriod || '期間を選択してください'}
+                {hasData && (
+                  <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
+                    リアルデータ
+                  </span>
+                )}
+              </p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20",
+                isRefreshing && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              データ更新
+            </button>
           </motion.div>
 
-          {/* Stats Grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-            <StatsCard
-              title="月間粗利"
-              value={formatYen(dashboardStats.totalMonthlyProfit)}
-              icon={TrendingUp}
-              trend={profitTrendCalc}
-              variant="gradient"
-              delay={0}
-            />
-            <StatsCard
-              title="月間売上"
-              value={formatYen(dashboardStats.totalMonthlyRevenue)}
-              icon={DollarSign}
-              trend={revenueTrendCalc}
-              variant="success"
-              delay={1}
-            />
-            <StatsCard
-              title="平均マージン率"
-              value={formatPercent(dashboardStats.averageMargin)}
-              icon={Percent}
-              subtitle="目標: 25%"
-              variant="default"
-              delay={2}
-            />
-            <StatsCard
-              title="会社負担コスト"
-              value={formatYen(dashboardStats.totalMonthlyCost)}
-              icon={Wallet}
-              subtitle="社保・有給含む"
-              variant="warning"
-              delay={3}
-            />
-          </div>
+          {!hasData ? (
+            // Empty state when no data
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mb-6">
+                <Receipt className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">データがありません</h2>
+              <p className="text-muted-foreground max-w-md mb-6">
+                給与明細Excelファイルをアップロードすると、
+                自動で粗利計算・分析結果が表示されます。
+              </p>
+              <a
+                href="/upload"
+                className="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+              >
+                ファイルをアップロード
+              </a>
+            </motion.div>
+          ) : (
+            <>
+              {/* Main Stats Grid */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                <StatsCard
+                  title="月間粗利"
+                  value={formatYen(dashboardStats.totalMonthlyProfit)}
+                  icon={TrendingUp}
+                  trend={{
+                    value: chartData?.previousMargin
+                      ? dashboardStats.averageMargin - chartData.previousMargin
+                      : 0,
+                    label: '前月比'
+                  }}
+                  variant="gradient"
+                  delay={0}
+                />
+                <StatsCard
+                  title="月間売上"
+                  value={formatYen(dashboardStats.totalMonthlyRevenue)}
+                  icon={DollarSign}
+                  subtitle={`${payrollRecords.filter(r => r.period === selectedPeriod).length}名分`}
+                  variant="success"
+                  delay={1}
+                />
+                <StatsCard
+                  title="平均マージン率"
+                  value={formatPercent(dashboardStats.averageMargin)}
+                  icon={Percent}
+                  subtitle={dashboardStats.averageMargin >= 15 ? '目標達成' : '目標: 15%'}
+                  variant={dashboardStats.averageMargin >= 15 ? 'success' : 'warning'}
+                  delay={2}
+                />
+                <StatsCard
+                  title="会社負担コスト"
+                  value={formatYen(dashboardStats.totalMonthlyCost)}
+                  icon={Wallet}
+                  subtitle="社保・雇用保険・労災含む"
+                  variant="default"
+                  delay={3}
+                />
+              </div>
 
-          {/* Secondary Stats */}
-          <div className="grid gap-4 md:grid-cols-4 mb-8">
-            <StatsCard
-              title="総従業員数"
-              value={`${dashboardStats.totalEmployees}名`}
-              icon={Users}
-              delay={4}
-            />
-            <StatsCard
-              title="派遣先企業数"
-              value={`${dashboardStats.totalCompanies}社`}
-              icon={Building2}
-              delay={5}
-            />
-            <StatsCard
-              title="平均粗利/人"
-              value={formatYen(dashboardStats.averageProfit)}
-              icon={BadgeJapaneseYen}
-              delay={6}
-            />
-            <StatsCard
-              title="処理済明細"
-              value={`${payrollRecords.length}件`}
-              icon={Receipt}
-              delay={7}
-            />
-          </div>
+              {/* Secondary Stats */}
+              <div className="grid gap-4 md:grid-cols-4 mb-8">
+                <StatsCard
+                  title="総従業員数"
+                  value={`${dashboardStats.totalEmployees}名`}
+                  icon={Users}
+                  delay={4}
+                />
+                <StatsCard
+                  title="派遣先企業数"
+                  value={`${dashboardStats.totalCompanies}社`}
+                  icon={Building2}
+                  delay={5}
+                />
+                <StatsCard
+                  title="平均粗利/人"
+                  value={formatYen(dashboardStats.averageProfit)}
+                  icon={BadgeJapaneseYen}
+                  delay={6}
+                />
+                <StatsCard
+                  title="処理済明細"
+                  value={`${payrollRecords.length}件`}
+                  icon={Receipt}
+                  delay={7}
+                />
+              </div>
 
-          {/* Charts Row 1 */}
-          <div className="grid gap-6 lg:grid-cols-2 mb-6">
-            <ProfitTrendChart data={dashboardStats.profitTrend} />
-            <ProfitDistributionChart data={dashboardStats.profitDistribution} />
-          </div>
+              {/* Margin Gauge + Hours Breakdown Row */}
+              <div className="grid gap-6 lg:grid-cols-3 mb-6">
+                <MarginGaugeChart
+                  currentMargin={dashboardStats.averageMargin}
+                  targetMargin={15}
+                  previousMargin={chartData?.previousMargin}
+                />
+                {chartData && (
+                  <HoursBreakdownChart data={chartData.hoursData} />
+                )}
+                <ProfitDistributionChart data={dashboardStats.profitDistribution} />
+              </div>
 
-          {/* Charts Row 2 */}
-          <div className="grid gap-6 lg:grid-cols-2 mb-6">
-            <CompanyProfitChart data={dashboardStats.topCompanies} />
-            <CostBreakdownChart data={costBreakdownData} />
-          </div>
+              {/* Employee Ranking - Full Width */}
+              {chartData && (
+                <div className="mb-6">
+                  <EmployeeRankingChart
+                    topPerformers={chartData.topPerformers}
+                    bottomPerformers={chartData.bottomPerformers}
+                    averageProfit={dashboardStats.averageProfit}
+                  />
+                </div>
+              )}
 
-          {/* Recent Payrolls */}
-          <RecentPayrolls
-            payrolls={dashboardStats.recentPayrolls}
-            employees={employees}
-          />
+              {/* Factory Comparison - Full Width */}
+              {chartData && chartData.factoryData.length > 0 && (
+                <div className="mb-6">
+                  <FactoryComparisonChart data={chartData.factoryData} />
+                </div>
+              )}
+
+              {/* Profit Trend + Company Profit */}
+              <div className="grid gap-6 lg:grid-cols-2 mb-6">
+                <ProfitTrendChart data={dashboardStats.profitTrend} />
+                <CompanyProfitChart data={dashboardStats.topCompanies} />
+              </div>
+
+              {/* Recent Payrolls */}
+              <RecentPayrolls
+                payrolls={dashboardStats.recentPayrolls}
+                employees={employees}
+              />
+            </>
+          )}
         </div>
       </main>
     </div>
