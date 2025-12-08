@@ -59,14 +59,23 @@ export default function CompaniesPage() {
 
     return Array.from(companyMap.values())
       .map(company => {
+        // Only count employees that have payroll records in the latest period
+        const activeEmployeeIds = new Set(
+          latestRecords
+            .filter(r => company.employees.some(e => e.employeeId === r.employeeId))
+            .map(r => r.employeeId)
+        )
+        const activeEmployeeCount = activeEmployeeIds.size
+
         const avgHourlyRate = company.employees.reduce((sum, e) => sum + e.hourlyRate, 0) / company.employees.length
         const avgBillingRate = company.employees.reduce((sum, e) => sum + e.billingRate, 0) / company.employees.length
         const avgProfit = avgBillingRate - avgHourlyRate
-        const avgMargin = (avgProfit / avgBillingRate) * 100
+        const avgMargin = avgBillingRate > 0 ? (avgProfit / avgBillingRate) * 100 : 0
 
         return {
           name: company.name,
-          employeeCount: company.employees.length,
+          employeeCount: activeEmployeeCount, // Only count active employees with payroll
+          totalEmployees: company.employees.length, // Total registered employees
           avgHourlyRate,
           avgBillingRate,
           avgProfit,
@@ -75,6 +84,8 @@ export default function CompaniesPage() {
           totalMonthlyRevenue: company.totalRevenue,
         }
       })
+      // Filter out companies with no active employees in the current period
+      .filter(company => company.employeeCount > 0)
       .sort((a, b) => b.totalMonthlyProfit - a.totalMonthlyProfit)
   }, [employees, payrollRecords])
 

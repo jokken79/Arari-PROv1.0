@@ -23,6 +23,13 @@ import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { useAppStore } from '@/store/appStore'
 import { formatYen, formatPercent } from '@/lib/utils'
 
+// Calculate trend from two periods
+function calculateTrend(current: number, previous: number): { value: number; label: string } | undefined {
+  if (!previous || previous === 0) return undefined
+  const change = ((current - previous) / previous) * 100
+  return { value: parseFloat(change.toFixed(1)), label: '前月比' }
+}
+
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { dashboardStats, employees, payrollRecords, loadSampleData } = useAppStore()
@@ -43,6 +50,19 @@ export default function DashboardPage() {
       </div>
     )
   }
+
+  // Calculate real trends from profitTrend data
+  const profitTrend = dashboardStats.profitTrend || []
+  const latestPeriod = profitTrend.length > 0 ? profitTrend[profitTrend.length - 1] : null
+  const previousPeriod = profitTrend.length > 1 ? profitTrend[profitTrend.length - 2] : null
+
+  const profitTrendCalc = latestPeriod && previousPeriod
+    ? calculateTrend(latestPeriod.profit, previousPeriod.profit)
+    : undefined
+
+  const revenueTrendCalc = latestPeriod && previousPeriod
+    ? calculateTrend(latestPeriod.revenue, previousPeriod.revenue)
+    : undefined
 
   // Prepare cost breakdown data
   const costBreakdownData = [
@@ -83,7 +103,7 @@ export default function DashboardPage() {
               title="月間粗利"
               value={formatYen(dashboardStats.totalMonthlyProfit)}
               icon={TrendingUp}
-              trend={{ value: 12.5, label: '前月比' }}
+              trend={profitTrendCalc}
               variant="gradient"
               delay={0}
             />
@@ -91,7 +111,7 @@ export default function DashboardPage() {
               title="月間売上"
               value={formatYen(dashboardStats.totalMonthlyRevenue)}
               icon={DollarSign}
-              trend={{ value: 8.2, label: '前月比' }}
+              trend={revenueTrendCalc}
               variant="success"
               delay={1}
             />

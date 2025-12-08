@@ -8,6 +8,7 @@ from models import (
     Employee, EmployeeCreate,
     PayrollRecord, PayrollRecordCreate
 )
+from employee_rates import get_rates_loader
 import io
 import csv
 
@@ -157,29 +158,87 @@ class PayrollService:
         """Create a new payroll record with calculated fields"""
         # Get employee info for calculations
         employee = self.get_employee(record.employee_id)
-        if not employee:
-            raise ValueError(f"Employee {record.employee_id} not found")
 
-        hourly_rate = employee['hourly_rate']
+        # Load rates from 社員台帳 (Employee Master)
+        rates_loader = get_rates_loader()
+        hourly_rate_from_master, billing_rate_from_master = rates_loader.get_rates(record.employee_id)
+
+        # Auto-create employee if not exists (using data from Excel)
+        if not employee:
+            # Create employee with data from payroll record AND rates from 社員台帳
+            dispatch_company = getattr(record, 'dispatch_company', None) or 'Unknown'
+            employee_name = getattr(record, 'employee_name', None) or f'Employee {record.employee_id}'
+
+            cursor = self.db.cursor()
+            cursor.execute("""
+                INSERT INTO employees (
+                    employee_id, name, name_kana, dispatch_company, department,
+                    hourly_rate, billing_rate, status, hire_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                record.employee_id,
+                employee_name,
+                '',  # name_kana - not available in Excel
+                dispatch_company,
+                '',  # department - not available in Excel
+                hourly_rate_from_master,  # Get from 社員台帳
+                billing_rate_from_master,  # Get from 社員台帳
+                'active',
+                None  # hire_date
+            ))
+            self.db.commit()
+
+            # Get the newly created employee
+            employee = self.get_employee(record.employee_id)
+
+        # Use rates from employee database, but prefer rates from 社員台帳 if they're higher (more recent/accurate)
+        hourly_rate = max(employee['hourly_rate'] or 0, hourly_rate_from_master)
+        billing_rate = max((employee['billing_rate'] or 0), billing_rate_from_master)
+
+        # If rates were loaded from 社員台帳 and different from DB, update the employee
+        if hourly_rate != (employee['hourly_rate'] or 0) or billing_rate != (employee['billing_rate'] or 0):
+            if hourly_rate > 0 or billing_rate > 0:
+                cursor = self.db.cursor()
+                cursor.execute("""
+                    UPDATE employees
+                    SET hourly_rate = ?, billing_rate = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE employee_id = ?
+                """, (hourly_rate, billing_rate, record.employee_id))
+                self.db.commit()
+
+        # Calculate billing_amount if not provided
+        # billing_amount = billing_rate * (work_hours + overtime_hours)
+        total_hours = (record.work_hours or 0) + (record.overtime_hours or 0)
+        billing_amount = record.billing_amount
+        if (billing_amount is None or billing_amount == 0) and billing_rate > 0 and total_hours > 0:
+            billing_amount = billing_rate * total_hours
 
         # Calculate company costs
-        company_social_insurance = record.company_social_insurance or record.social_insurance  # Same as employee
-        company_employment_insurance = record.company_employment_insurance or round(record.gross_salary * 0.009)
-        paid_leave_cost = record.paid_leave_hours * hourly_rate
+        # 社会保険料（会社負担）: approximately equal to employee's portion
+        company_social_insurance = record.company_social_insurance or record.social_insurance
+        # 雇用保険（会社負担）: 0.9% of gross salary
+        company_employment_insurance = record.company_employment_insurance or round((record.gross_salary or 0) * 0.009)
+        # 通勤費: transport allowance
         transport_cost = record.transport_allowance or 0
 
+        # Note: gross_salary already includes:
+        # - base_salary (基本給)
+        # - overtime_pay (残業代)
+        # - paid_leave_payment (有給休暇支給額) - already in gross, no need to add again
+        # - transport_allowance (通勤費) - already in gross, no need to add again
+
+        # Total company cost = what we pay employee + company's insurance burden
+        # Transport is already in gross_salary, so we don't add it again
         total_company_cost = record.total_company_cost or (
-            record.gross_salary +
+            (record.gross_salary or 0) +
             company_social_insurance +
-            company_employment_insurance +
-            paid_leave_cost +
-            transport_cost  # 通勤費も含める
+            company_employment_insurance
         )
 
         # Calculate profit
-        gross_profit = record.gross_profit or (record.billing_amount - total_company_cost)
+        gross_profit = record.gross_profit or (billing_amount - total_company_cost)
         profit_margin = record.profit_margin or (
-            (gross_profit / record.billing_amount * 100) if record.billing_amount > 0 else 0
+            (gross_profit / billing_amount * 100) if billing_amount > 0 else 0
         )
 
         cursor = self.db.cursor()
@@ -200,7 +259,7 @@ class PayrollService:
             record.base_salary, record.overtime_pay, record.transport_allowance,
             record.other_allowances, record.gross_salary, record.social_insurance,
             record.employment_insurance, record.income_tax, record.resident_tax,
-            record.other_deductions, record.net_salary, record.billing_amount,
+            record.other_deductions, record.net_salary, billing_amount,
             company_social_insurance, company_employment_insurance, total_company_cost,
             gross_profit, profit_margin
         ))

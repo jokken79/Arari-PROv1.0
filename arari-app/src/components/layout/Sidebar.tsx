@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  TrendingDown,
   Calendar,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -84,9 +86,55 @@ interface SidebarProps {
   onClose?: () => void
 }
 
+interface ProfitStats {
+  currentProfit: number
+  previousProfit: number
+  changePercent: number
+  period: string
+}
+
 export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [profitStats, setProfitStats] = useState<ProfitStats | null>(null)
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
+
+  useEffect(() => {
+    const fetchProfitStats = async () => {
+      try {
+        const response = await fetch('/api/statistics')
+        if (response.ok) {
+          const data = await response.json()
+
+          // Get the latest two periods from profit_trend to calculate change
+          const profitTrend = data.profit_trend || []
+          if (profitTrend.length >= 1) {
+            const current = profitTrend[profitTrend.length - 1]
+            const previous = profitTrend.length >= 2 ? profitTrend[profitTrend.length - 2] : null
+
+            const currentProfit = current?.profit || 0
+            const previousProfit = previous?.profit || 0
+            const changePercent = previousProfit > 0
+              ? ((currentProfit - previousProfit) / previousProfit) * 100
+              : 0
+
+            setProfitStats({
+              currentProfit,
+              previousProfit,
+              changePercent,
+              period: current?.period || ''
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch profit stats:', error)
+      } finally {
+        setIsLoadingStats(false)
+      }
+    }
+
+    fetchProfitStats()
+  }, [])
 
   return (
     <TooltipProvider>
@@ -181,15 +229,40 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                 >
                   <div className="rounded-xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-4 border border-emerald-500/20">
                     <div className="flex items-center gap-2 mb-3">
-                      <TrendingUp className="h-4 w-4 text-emerald-500" />
-                      <span className="text-sm font-medium">今月の粗利</span>
+                      {profitStats && profitStats.changePercent >= 0 ? (
+                        <TrendingUp className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className="text-sm font-medium">
+                        {profitStats?.period ? `${profitStats.period}の粗利` : '今月の粗利'}
+                      </span>
                     </div>
-                    <p className="text-2xl font-bold text-emerald-500">
-                      ¥1,234,567
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      前月比 +12.3%
-                    </p>
+                    {isLoadingStats ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">読込中...</span>
+                      </div>
+                    ) : profitStats ? (
+                      <>
+                        <p className={cn(
+                          "text-2xl font-bold",
+                          profitStats.currentProfit >= 0 ? "text-emerald-500" : "text-red-500"
+                        )}>
+                          ¥{profitStats.currentProfit.toLocaleString()}
+                        </p>
+                        {profitStats.previousProfit > 0 && (
+                          <p className={cn(
+                            "text-xs mt-1",
+                            profitStats.changePercent >= 0 ? "text-emerald-600" : "text-red-500"
+                          )}>
+                            前月比 {profitStats.changePercent >= 0 ? '+' : ''}{profitStats.changePercent.toFixed(1)}%
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">データなし</p>
+                    )}
                   </div>
                 </motion.div>
               )}

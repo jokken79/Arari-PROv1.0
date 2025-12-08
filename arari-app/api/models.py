@@ -65,6 +65,10 @@ class PayrollRecordCreate(PayrollRecordBase):
     total_company_cost: Optional[float] = None
     gross_profit: Optional[float] = None
     profit_margin: Optional[float] = None
+    # Dispatch company from Excel sheet name (派遣先企業)
+    dispatch_company: Optional[str] = None
+    # Employee name from Excel (氏名)
+    employee_name: Optional[str] = None
 
 class PayrollRecord(PayrollRecordBase):
     id: Optional[int] = None
