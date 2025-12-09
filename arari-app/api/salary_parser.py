@@ -1,18 +1,27 @@
 """
 Specialized parser for .xlsm salary statement files (給与明細)
 
-VERSIÓN 3.0 - Parser con Templates
-===================================
-- Sistema híbrido: Templates guardados + Detección dinámica
-- Primera vez: Detecta campos por nombre y guarda template
-- Siguientes veces: Usa template guardado para mayor velocidad
-- Fallback: Si template falla, vuelve a detección dinámica
+VERSIÓN 4.0 - Parser Híbrido (Fijo + Dinámico por Empleado)
+============================================================
+- Filas 1-19: POSICIÓN FIJA (datos básicos siempre en misma fila)
+- Filas 20-29: ESCANEO DINÁMICO POR EMPLEADO (allowances varían)
+- Filas 30+: POSICIÓN FIJA (totales y deducciones)
+
+Problema resuelto:
+- Empleado A tiene ガソリン代 en fila 20
+- Empleado B tiene 60H過残業 en fila 20 y ガソリン代 en fila 21
+- Empleado C tiene 皆勤手当 en fila 20, 業務手当 en fila 21, ガソリン代 en fila 22
+
+Solución:
+- Para cada empleado, escanear filas 20-29 buscando labels
+- Detectar qué tiene cada uno individualmente
+- Leer valores según lo que se encuentre
 
 Features:
-- Busca campos por nombre (no posiciones fijas)
-- Detecta automáticamente cualquier 手当 (allowance)
+- Detecta automáticamente cualquier 手当 (allowance) POR EMPLEADO
+- Distingue entre billable y non-billable allowances
 - Valida consistencia: suma componentes vs 総支給額
-- Guarda templates por fábrica (派遣先)
+- Compatible con sistema de templates (para filas fijas)
 
 Handles complex multi-sheet, multi-employee layout where:
 - Each file has multiple sheets (1 summary + company sheets)
@@ -43,22 +52,25 @@ class SalaryStatementParser:
 
     # ================================================================
     # FIELD MAPPINGS - Busca estos nombres en las celdas del Excel
+    # IMPORTANTE: Los patterns deben ser ESPECÍFICOS para evitar confusiones
+    # - Para HORAS: usar patterns que NO contengan 手当/代/割増
+    # - Para YEN (pagos): usar patterns que SÍ contengan 手当/代/割増 o 給
     # ================================================================
     FIELD_PATTERNS = {
-        # Time data (時間データ)
-        'work_days': ['出勤日数', '出勤日', '勤務日数', '労働日数'],
-        'paid_leave_days': ['有給日数', '有休日数', '有給休暇日数'],
-        'work_hours': ['労働時間', '勤務時間', '所定時間', '基本時間', '総労働時間', '出勤時間', '就業時間', '実働時間', '実働'],
-        'overtime_hours': ['残業時間', '時間外', '残業', '普通残業', '早出残業', '所定外', '所定時間外労働'],
-        'night_hours': ['深夜時間', '深夜', '深夜労働', '深夜時間労働'],
-        'holiday_hours': ['休日時間', '休日出勤', '休出時間', '法定休日', '公休出勤'],
-        'overtime_over_60h': ['60H過', '60時間超', '60h超', '60H超残業'],
+        # Time data (時間データ) - SOLO patterns de HORAS, sin 手当/代
+        # NOTA: paid_leave_hours NO existe en este Excel - no detectar
+        'work_days': ['出勤日数'],  # Solo exacto, evitar substring matching
+        'paid_leave_days': ['有給日数'],  # Solo exacto
+        'work_hours': ['労働時間'],  # Solo exacto para evitar confusión
+        'overtime_hours': ['残業時間'],  # Solo exacto - NO usar '残業' solo
+        'night_hours': ['深夜時間'],  # Solo exacto - NO usar '深夜' solo
+        'holiday_hours': ['休日時間'],  # Solo exacto
 
-        # Salary amounts (給与)
+        # Salary amounts (給与) - Patterns con 手当/代/割増/給
         'base_salary': ['基本給', '基本賃金', '本給'],
-        'overtime_pay': ['残業代', '残業手当', '時間外手当'],
-        'night_pay': ['深夜手当', '深夜割増', '深夜代'],
-        'holiday_pay': ['休日手当', '休日割増', '休出手当'],
+        'overtime_pay': ['残業手当', '時間外手当', '残業代'],  # Con 手当/代
+        'night_pay': ['深夜手当', '深夜割増', '深夜代'],  # Con 手当/割増/代
+        'holiday_pay': ['休日手当', '休日割増', '休出手当'],  # Con 手当/割増
         'overtime_over_60h_pay': ['60H過手当', '60時間超手当', '60H超手当'],
         'transport_allowance': ['通勤費', '交通費', '通勤手当'],
         'paid_leave_amount': ['有給金額', '有休金額', '有給手当', '有給支給'],
@@ -124,13 +136,53 @@ class SalaryStatementParser:
 
     # Column offsets within an employee block
     # CRITICAL: Este Excel tiene datos en MÚLTIPLES columnas
+    # Para employee 1 (base_col=1): C1=marker, C2=category, C3=label, C4=value
     COLUMN_OFFSETS = {
         'period': 8,       # Period está en col 9 (base_col=1, offset=8)
         'employee_id': 9,  # Employee ID está en col 10 (base_col=1, offset=9)
         'name': 9,         # Name también en col 10
-        'label': 1,        # Labels en col 2 (base_col=1, offset=1)
+        'label': 2,        # Labels en col 3 (base_col=1, offset=2) ← CORREGIDO
         'value': 3,        # VALUES (salarios, horas) en col 4 (base_col=1, offset=3)
-        'days': 5,         # DAYS (work_days) en col 6 (base_col=1, offset=5) ← NUEVO
+        'days': 5,         # DAYS (work_days) en col 6 (base_col=1, offset=5)
+    }
+
+    # ================================================================
+    # ZONA DINÁMICA - Filas donde los allowances varían por empleado
+    # ================================================================
+    DYNAMIC_ZONE_START = 20  # Primera fila de la zona dinámica
+    DYNAMIC_ZONE_END = 29    # Última fila de la zona dinámica
+
+    # Labels que pueden aparecer en la zona dinámica (20-29)
+    DYNAMIC_ZONE_LABELS = {
+        # Overtime over 60h
+        '60H過残業': 'overtime_over_60h_pay',
+        '60H過': 'overtime_over_60h_pay',
+        '60時間超': 'overtime_over_60h_pay',
+        '60h超残業': 'overtime_over_60h_pay',
+
+        # Paid leave
+        '有給休暇': 'paid_leave_amount',
+        '有給': 'paid_leave_amount',
+        '有休': 'paid_leave_amount',
+
+        # Non-billable (company cost only)
+        '通勤手当(非)': 'non_billable',
+        '通勤手当（非）': 'non_billable',
+        '業務手当': 'non_billable',
+        '通勤費': 'non_billable',
+
+        # Other billable allowances
+        '休業補償': 'other_allowance',
+        '皆勤手当': 'other_allowance',
+        '変則手当': 'other_allowance',
+        '土日手当': 'other_allowance',
+        '繁忙期手当': 'other_allowance',
+        '職務手当': 'other_allowance',
+        '段取手当': 'other_allowance',
+        '交代手当': 'other_allowance',
+        '部会賞金': 'other_allowance',
+        '半日有給': 'other_allowance',
+        'ガソリン代': 'other_allowance',
     }
 
     def __init__(self, use_intelligent_mode: bool = True, template_manager: Optional[TemplateManager] = None):
@@ -381,8 +433,13 @@ class SalaryStatementParser:
         self.detected_allowances = {}
         self.detected_non_billable = {}
 
-        # Scan first 50 rows, looking at label columns (1, 2, 15, 16, etc.)
-        label_columns = [1, 2, 15, 16, 29, 30]  # Common label column positions
+        # Scan first 50 rows, looking at label columns
+        # Labels are at base_col + COLUMN_OFFSETS['label'] for each employee block
+        # Employee blocks start at: 1, 15, 29, 43, 57, ... (spacing = 14)
+        label_offset = self.COLUMN_OFFSETS.get('label', 2)
+        label_columns = []
+        for block_start in range(1, 100, 14):  # Generate for first ~7 employees
+            label_columns.append(block_start + label_offset)  # Column with labels
 
         for row in range(1, min(50, ws.max_row + 1)):
             for col in label_columns:
@@ -402,13 +459,31 @@ class SalaryStatementParser:
                     pass
 
                 # Check against known field patterns (using normalized label)
+                # IMPORTANTE: Usar matching EXACTO para evitar confusiones
+                # Por ejemplo: '残業' no debe matchear '残業手当' (que es YEN, no horas)
                 for field_name, patterns in self.FIELD_PATTERNS.items():
                     if field_name not in self.detected_fields:
                         for pattern in patterns:
                             pattern_normalized = pattern.replace(' ', '').replace('　', '')
-                            if pattern_normalized in label_normalized or label_normalized in pattern_normalized:
+                            # Usar EXACT MATCH o si el label COMIENZA con el pattern
+                            # Esto evita que '残業' matchee '残業手当'
+                            if label_normalized == pattern_normalized:
                                 self.detected_fields[field_name] = row
                                 break
+                            # También aceptar si el label empieza con el pattern (para variantes)
+                            # Pero SOLO si no contiene indicadores de pago (手当/代/割増/給)
+                            elif label_normalized.startswith(pattern_normalized):
+                                # Verificar que no sea un campo de pago disfrazado
+                                payment_indicators = ['手当', '代', '割増', '給']
+                                is_payment_field = any(ind in label_normalized for ind in payment_indicators)
+                                # Si estamos buscando horas y el label tiene indicador de pago, ignorar
+                                if '_hours' in field_name or '_days' in field_name:
+                                    if not is_payment_field:
+                                        self.detected_fields[field_name] = row
+                                        break
+                                else:
+                                    self.detected_fields[field_name] = row
+                                    break
 
                 # Check for NON-BILLABLE allowances (通勤手当（非）, 業務手当, etc.)
                 if label in self.NON_BILLABLE_ALLOWANCES:
@@ -426,6 +501,88 @@ class SalaryStatementParser:
             if re.match(pattern, label):
                 return True
         return False
+
+    def _scan_dynamic_zone_for_employee(self, ws, base_col: int) -> Dict[str, Any]:
+        """
+        Scan rows 20-29 for a specific employee to find their allowances.
+
+        This is the KEY method for v4.0 - it handles the case where different
+        employees have different allowances in different rows.
+
+        Args:
+            ws: Worksheet
+            base_col: Base column for this employee
+
+        Returns:
+            Dict with:
+                - overtime_over_60h_pay: float
+                - paid_leave_amount: float
+                - non_billable_total: float
+                - non_billable_details: List[str]
+                - other_allowances_total: float
+                - other_allowances_details: List[str]
+        """
+        offsets = self.current_column_offsets or self.COLUMN_OFFSETS
+        label_col = base_col + offsets.get('label', 1)
+        value_col = base_col + offsets.get('value', 3)
+
+        result = {
+            'overtime_over_60h_pay': 0.0,
+            'paid_leave_amount': 0.0,
+            'non_billable_total': 0.0,
+            'non_billable_details': [],
+            'other_allowances_total': 0.0,
+            'other_allowances_details': [],
+        }
+
+        # Scan rows 20-29 for this employee
+        for row in range(self.DYNAMIC_ZONE_START, self.DYNAMIC_ZONE_END + 1):
+            # Get the label in the employee's label column
+            label_cell = ws.cell(row=row, column=label_col)
+            label = label_cell.value
+
+            if not label:
+                continue
+
+            label_str = str(label).strip()
+
+            # Skip if empty or just whitespace
+            if not label_str or label_str in ['', '給', '額']:
+                continue
+
+            # Get the value
+            value = self._get_numeric(ws, row, value_col)
+
+            # Skip if no value
+            if value == 0:
+                continue
+
+            # Check against known labels
+            label_normalized = label_str.replace(' ', '').replace('　', '')
+
+            # Check known labels first
+            matched = False
+            for known_label, category in self.DYNAMIC_ZONE_LABELS.items():
+                if known_label in label_normalized or label_normalized in known_label:
+                    matched = True
+                    if category == 'overtime_over_60h_pay':
+                        result['overtime_over_60h_pay'] += value
+                    elif category == 'paid_leave_amount':
+                        result['paid_leave_amount'] += value
+                    elif category == 'non_billable':
+                        result['non_billable_total'] += value
+                        result['non_billable_details'].append(f"{label_str}=¥{value:,.0f}")
+                    elif category == 'other_allowance':
+                        result['other_allowances_total'] += value
+                        result['other_allowances_details'].append(f"{label_str}=¥{value:,.0f}")
+                    break
+
+            # If not matched but looks like an allowance, add to other_allowances
+            if not matched and self._is_allowance(label_str):
+                result['other_allowances_total'] += value
+                result['other_allowances_details'].append(f"{label_str}=¥{value:,.0f}")
+
+        return result
 
     def _detect_employee_columns(self, ws) -> List[int]:
         """
@@ -493,15 +650,21 @@ class SalaryStatementParser:
             overtime_hours = self._get_field_value(ws, 'overtime_hours', base_col)
             night_hours = self._get_field_value(ws, 'night_hours', base_col)
             holiday_hours = self._get_field_value(ws, 'holiday_hours', base_col)
-            overtime_over_60h = self._get_field_value(ws, 'overtime_over_60h', base_col)
+
+            # NOTE: overtime_over_60h (hours) and overtime_over_60h_pay are in DYNAMIC ZONE
+            # They will be read from dynamic zone scanning below, not from fixed positions
+            overtime_over_60h = 0  # Will be calculated if needed
+            overtime_over_60h_pay = 0  # Will be set from dynamic zone
 
             base_salary = self._get_field_value(ws, 'base_salary', base_col)
             overtime_pay = self._get_field_value(ws, 'overtime_pay', base_col)
             night_pay = self._get_field_value(ws, 'night_pay', base_col)
             holiday_pay = self._get_field_value(ws, 'holiday_pay', base_col)
-            overtime_over_60h_pay = self._get_field_value(ws, 'overtime_over_60h_pay', base_col)
             transport_allowance = self._get_field_value(ws, 'transport_allowance', base_col)
-            paid_leave_amount = self._get_field_value(ws, 'paid_leave_amount', base_col)
+
+            # NOTE: paid_leave_amount is in DYNAMIC ZONE (有給休暇)
+            # It will be set from dynamic zone scanning below
+            paid_leave_amount = 0  # Will be set from dynamic zone
 
             # Extract deductions
             social_insurance = self._get_field_value(ws, 'social_insurance', base_col)
@@ -514,32 +677,30 @@ class SalaryStatementParser:
             net_salary = self._get_field_value(ws, 'net_salary', base_col)
 
             # ================================================================
-            # DYNAMIC ALLOWANCE DETECTION - Sum all detected 手当
+            # V4.0: DYNAMIC ZONE SCANNING (rows 20-29) PER EMPLOYEE
+            # This handles the case where different employees have different
+            # allowances in different row positions
             # ================================================================
-            other_allowances_total = 0
-            detected_allowance_details = []
+            dynamic_data = self._scan_dynamic_zone_for_employee(ws, base_col)
 
-            for allowance_name, row in self.detected_allowances.items():
-                value = self._get_numeric(ws, row, base_col + offsets.get('value', 3))
-                if value > 0:
-                    other_allowances_total += value
-                    detected_allowance_details.append(f"{allowance_name}=¥{value:,.0f}")
+            # Get values from dynamic zone scan
+            # Override fixed-position values if dynamic scan found them
+            if dynamic_data['overtime_over_60h_pay'] > 0:
+                overtime_over_60h_pay = dynamic_data['overtime_over_60h_pay']
+
+            if dynamic_data['paid_leave_amount'] > 0:
+                paid_leave_amount = dynamic_data['paid_leave_amount']
+
+            # Get other allowances (billable)
+            other_allowances_total = dynamic_data['other_allowances_total']
+            detected_allowance_details = dynamic_data['other_allowances_details']
 
             if detected_allowance_details:
                 print(f"    [Allowances] {employee_id}: {', '.join(detected_allowance_details)}")
 
-            # ================================================================
-            # NON-BILLABLE ALLOWANCES (通勤手当（非）, 業務手当, etc.)
-            # These are costs for company but NOT billed to 派遣先
-            # ================================================================
-            non_billable_total = 0
-            non_billable_details = []
-
-            for allowance_name, row in self.detected_non_billable.items():
-                value = self._get_numeric(ws, row, base_col + offsets.get('value', 3))
-                if value > 0:
-                    non_billable_total += value
-                    non_billable_details.append(f"{allowance_name}=¥{value:,.0f}")
+            # Get non-billable allowances
+            non_billable_total = dynamic_data['non_billable_total']
+            non_billable_details = dynamic_data['non_billable_details']
 
             if non_billable_details:
                 print(f"    [Non-billable] {employee_id}: {', '.join(non_billable_details)} (company cost only)")
