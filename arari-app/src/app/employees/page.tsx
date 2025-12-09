@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { EmployeeTable } from '@/components/employees/EmployeeTable'
+import { EmployeeDetailModal } from '@/components/employees/EmployeeDetailModal'
 import { useAppStore } from '@/store/appStore'
+import type { Employee } from '@/types'
 
 export default function EmployeesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const searchParams = useSearchParams()
+  const companyFilter = searchParams.get('company')
+
   const { employees, useBackend, loadDataFromBackend, loadSampleData } = useAppStore()
 
   useEffect(() => {
@@ -24,6 +31,11 @@ export default function EmployeesPage() {
     }
   }, [employees.length, useBackend, loadDataFromBackend, loadSampleData])
 
+  // Filter employees by company if specified
+  const filteredEmployees = companyFilter
+    ? employees.filter(emp => emp.dispatchCompany === companyFilter)
+    : employees
+
   return (
     <div className="min-h-screen bg-background">
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
@@ -38,13 +50,30 @@ export default function EmployeesPage() {
           >
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
               従業員一覧
+              {companyFilter && (
+                <span className="text-lg text-muted-foreground ml-4">
+                  {companyFilter}
+                </span>
+              )}
             </h1>
             <p className="text-muted-foreground mt-1">
               派遣社員の情報と粗利分析
+              {companyFilter && ` (${filteredEmployees.length}名)`}
             </p>
           </motion.div>
 
-          <EmployeeTable employees={employees} />
+          <EmployeeTable
+            employees={filteredEmployees}
+            onView={(employee) => setSelectedEmployee(employee)}
+          />
+
+          {selectedEmployee && (
+            <EmployeeDetailModal
+              employee={selectedEmployee}
+              isOpen={!!selectedEmployee}
+              onClose={() => setSelectedEmployee(null)}
+            />
+          )}
         </div>
       </main>
     </div>

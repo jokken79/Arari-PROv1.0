@@ -145,11 +145,8 @@ class DBGenzaiXParser:
         return None
 
     def _detect_columns(self, sheet) -> Dict[str, Optional[int]]:
-        """
-        Detect column indices from header row.
-        Returns dict mapping field names to column indices (1-based).
-        """
-        col_indices = {field: None for field in self.COLUMN_MAPPINGS.keys()}
+        """Detect column indices from header row"""
+        col_indices: Dict[str, Optional[int]] = {field: None for field in self.COLUMN_MAPPINGS}
 
         # Read header row (row 1)
         for col_idx in range(1, sheet.max_column + 1):
@@ -157,9 +154,9 @@ class DBGenzaiXParser:
             if not header:
                 continue
 
-            header_lower = str(header).lower().strip()
+            header_lower = str(header).strip().lower()
 
-            # Try to match this header to a field
+            # Check each field mapping
             for field, aliases in self.COLUMN_MAPPINGS.items():
                 for alias in aliases:
                     if header_lower == alias.lower():

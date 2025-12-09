@@ -29,7 +29,8 @@ import { cn } from '@/lib/utils'
 import { syncApi } from '@/lib/api'
 
 // API base URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// API base URL - Force localhost:8765 for this environment
+const API_URL = 'http://localhost:8765'
 
 interface InsuranceSettings {
   employment_insurance_rate: string

@@ -38,11 +38,11 @@ class SalaryStatementParser:
     # ================================================================
     FIELD_PATTERNS = {
         # Time data (時間データ)
-        'work_days': ['出勤日数', '出勤日', '勤務日数'],
+        'work_days': ['出勤日数', '出勤日', '勤務日数', '労働日数'],
         'paid_leave_days': ['有給日数', '有休日数', '有給休暇日数'],
         'work_hours': ['労働時間', '勤務時間', '所定時間', '基本時間', '総労働時間', '出勤時間', '就業時間', '実働時間', '実働'],
-        'overtime_hours': ['残業時間', '時間外', '残業', '普通残業', '早出残業', '所定外'],
-        'night_hours': ['深夜時間', '深夜', '深夜労働'],
+        'overtime_hours': ['残業時間', '時間外', '残業', '普通残業', '早出残業', '所定外', '所定時間外労働'],
+        'night_hours': ['深夜時間', '深夜', '深夜労働', '深夜時間労働'],
         'holiday_hours': ['休日時間', '休日出勤', '休出時間', '法定休日', '公休出勤'],
         'overtime_over_60h': ['60H過', '60時間超', '60h超', '60H超残業'],
 
@@ -92,35 +92,46 @@ class SalaryStatementParser:
     ]
 
     # Fallback row positions (used if intelligent detection fails)
+    # ACTUALIZADO 2025-12-09 - Basado en análisis REAL del Excel completo
     FALLBACK_ROW_POSITIONS = {
-        'period': 5,
-        'employee_id': 6,
-        'name': 7,
-        'work_days': 11,
-        'paid_leave_days': 12,
-        'work_hours': 13,
-        'overtime_hours': 14,
-        'base_salary': 16,
-        'overtime_pay': 17,
-        'gross_salary': 30,
-        'net_salary': 31,
+        'period': 10,            # Período (datetime en row 10)
+        'employee_id': 6,        # ID empleado (200901)
+        'name': 7,               # Nombre
+        'work_days': 11,         # Días trabajados (16) - en columna Days
+        'paid_leave_days': 12,   # Días de vacaciones pagadas
+        'work_hours': 13,        # Horas de trabajo (128)
+        'overtime_hours': 14,    # Horas extra (13)
+        'night_hours': 15,       # Horas nocturnas (70)
+        'base_salary': 16,       # Salario base (¥172,800) ← CORREGIDO
+        'overtime_pay': 17,      # Pago horas extra (¥23,210) ← CORREGIDO
+        'night_pay': 18,         # Pago nocturno (¥23,829) ← CORREGIDO
+        'gross_salary': 30,      # Salario bruto (¥219,839)
+        'social_insurance': 31,  # Seguro social (¥15,030)
+        'employment_insurance': 33,  # Seguro empleo (¥1,319) ← CORREGIDO
+        'net_salary': 47,        # Salario neto (¥182,677) ← CORREGIDO
+        # Campos que NO existen en este Excel:
+        # holiday_hours, overtime_over_60h, holiday_pay, overtime_over_60h_pay
+        # transport_allowance, paid_leave_amount, income_tax, resident_tax
     }
 
     # Column offsets within an employee block
+    # CRITICAL: Este Excel tiene datos en MÚLTIPLES columnas
     COLUMN_OFFSETS = {
-        'period': 2,
-        'employee_id': 9,
-        'name': 2,
-        'label': 1,    # Column where field labels appear
-        'value': 3,    # Column where values appear
+        'period': 8,       # Period está en col 9 (base_col=1, offset=8)
+        'employee_id': 9,  # Employee ID está en col 10 (base_col=1, offset=9)
+        'name': 9,         # Name también en col 10
+        'label': 1,        # Labels en col 2 (base_col=1, offset=1)
+        'value': 3,        # VALUES (salarios, horas) en col 4 (base_col=1, offset=3)
+        'days': 5,         # DAYS (work_days) en col 6 (base_col=1, offset=5) ← NUEVO
     }
 
-    def __init__(self, use_intelligent_mode: bool = True):
+    def __init__(self, use_intelligent_mode: bool = False):
         """
         Initialize parser
 
         Args:
             use_intelligent_mode: If True, scan Excel for field names dynamically
+                                 DEFAULT FALSE - intelligent mode tiene bug
         """
         self.use_intelligent_mode = use_intelligent_mode
         self.detected_fields: Dict[str, int] = {}  # field_name -> row_number
@@ -141,7 +152,7 @@ class SalaryStatementParser:
         try:
             wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
         except Exception as e:
-            print(f"❌ Error loading Excel file: {e}")
+            print(f"[ERROR] Error loading Excel file: {e}")
             return []
 
         records = []
@@ -156,14 +167,14 @@ class SalaryStatementParser:
                 sheet_records = self._parse_sheet(ws, sheet_name)
                 records.extend(sheet_records)
             except Exception as e:
-                print(f"⚠️  Warning: Error parsing sheet '{sheet_name}': {e}")
+                print(f"[WARNING] Error parsing sheet '{sheet_name}': {e}")
                 continue
 
-        print(f"📊 Parsed {len(records)} employee records from Excel")
+        print(f"[OK] Parsed {len(records)} employee records from Excel")
 
         # Show validation warnings
         if self.validation_warnings:
-            print(f"\n⚠️  VALIDATION WARNINGS ({len(self.validation_warnings)}):")
+            print(f"\n[WARNING] VALIDATION WARNINGS ({len(self.validation_warnings)}):")
             for warning in self.validation_warnings[:10]:  # Show first 10
                 print(f"   {warning}")
 
@@ -181,12 +192,12 @@ class SalaryStatementParser:
         employee_cols = self._detect_employee_columns(ws)
 
         if not employee_cols:
-            print(f"  ⚠️  No employee IDs found in sheet '{sheet_name}'")
+            print(f"  [WARNING] No employee IDs found in sheet '{sheet_name}'")
             return records
 
-        print(f"  📋 Sheet '{sheet_name}': {len(employee_cols)} employees, "
+        print(f"  [Sheet '{sheet_name}'] {len(employee_cols)} employees, "
               f"{len(self.detected_fields)} fields, "
-              f"{len(self.detected_allowances)} 手当, "
+              f"{len(self.detected_allowances)} allowances, "
               f"{len(self.detected_non_billable)} non-billable")
 
         # Step 3: Extract data for each employee
@@ -216,12 +227,22 @@ class SalaryStatementParser:
                     continue
 
                 label = str(cell_value).strip()
+                # Normalize label by removing ALL spaces (both ASCII and full-width)
+                label_normalized = label.replace(' ', '').replace('　', '')
 
-                # Check against known field patterns
+                # DEBUG LOGGING
+                try:
+                    with open("d:\\Arari-PRO\\debug_headers.log", "a", encoding="utf-8") as f:
+                        f.write(f"Line {row} Col {col}: {label} → {label_normalized}\n")
+                except:
+                    pass
+
+                # Check against known field patterns (using normalized label)
                 for field_name, patterns in self.FIELD_PATTERNS.items():
                     if field_name not in self.detected_fields:
                         for pattern in patterns:
-                            if pattern in label or label in pattern:
+                            pattern_normalized = pattern.replace(' ', '').replace('　', '')
+                            if pattern_normalized in label_normalized or label_normalized in pattern_normalized:
                                 self.detected_fields[field_name] = row
                                 break
 
@@ -276,21 +297,27 @@ class SalaryStatementParser:
         try:
             # Get period
             period_row = self.detected_fields.get('period') or self.FALLBACK_ROW_POSITIONS['period']
-            period_cell = ws.cell(row=period_row, column=base_col + self.COLUMN_OFFSETS['period'])
+            period_col = base_col + self.COLUMN_OFFSETS['period']
+            period_cell = ws.cell(row=period_row, column=period_col)
+
             period = self._parse_period(period_cell.value)
             if not period:
                 return None
 
             # Get employee_id
             emp_id_row = self.detected_fields.get('employee_id') or self.FALLBACK_ROW_POSITIONS.get('employee_id', 6)
-            emp_id_cell = ws.cell(row=emp_id_row, column=base_col + self.COLUMN_OFFSETS['employee_id'])
+            emp_id_col = base_col + self.COLUMN_OFFSETS['employee_id']
+            emp_id_cell = ws.cell(row=emp_id_row, column=emp_id_col)
             employee_id = str(emp_id_cell.value or '').strip()
 
             if not employee_id or not employee_id.isdigit():
                 return None
 
             # Extract all standard fields
-            work_days = self._get_field_value(ws, 'work_days', base_col)
+            # work_days usa columna 'days' (offset 5), no 'value'
+            work_days_row = self.detected_fields.get('work_days') or self.FALLBACK_ROW_POSITIONS.get('work_days', 11)
+            work_days = self._get_numeric(ws, work_days_row, base_col + self.COLUMN_OFFSETS['days'])
+
             paid_leave_days = self._get_field_value(ws, 'paid_leave_days', base_col)
             work_hours = self._get_field_value(ws, 'work_hours', base_col)
             overtime_hours = self._get_field_value(ws, 'overtime_hours', base_col)
@@ -431,7 +458,7 @@ class SalaryStatementParser:
             return PayrollRecordCreate(**data)
 
         except Exception as e:
-            print(f"  ❌ Error extracting data for employee at column {base_col}: {e}")
+            print(f"  [ERROR] Error extracting data for employee at column {base_col}: {e}")
             return None
 
     def _get_field_value(self, ws, field_name: str, base_col: int) -> float:
@@ -451,6 +478,11 @@ class SalaryStatementParser:
         """Convert period string to standard format (YYYY年M月)"""
         if value is None or value == '':
             return ''
+
+        # Handle datetime objects from Excel
+        from datetime import datetime
+        if isinstance(value, datetime):
+            return f"{value.year}年{value.month}月"
 
         value_str = str(value)
         match = re.search(r'(\d{4})年(\d{1,2})月', value_str)
@@ -523,7 +555,7 @@ class SalaryStatementParserLegacy:
         'period': 2,
         'employee_id': 9,
         'name': 2,
-        'value': 3,
+        'value': 0,    # FIXED: Values are in same column as employee_id
     }
 
     def parse(self, content: bytes) -> List[PayrollRecordCreate]:

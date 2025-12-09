@@ -119,7 +119,10 @@ export default function CompaniesPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card
+                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => window.location.href = `/employees?company=${encodeURIComponent(company.name)}`}
+                >
                   <CardContent className="p-6">
                     <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                       {/* Company Info */}

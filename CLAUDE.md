@@ -126,6 +126,55 @@ Estos 手当 se pagan al empleado pero **NO se facturan** al 派遣先:
 - ✅ Se incluyen en `total_company_cost`
 - ❌ NO se incluyen en `billing_amount` (facturación basada en horas × 単価)
 
+## Arquitectura Técnica
+
+### Stack del Sistema
+- **Frontend**: Next.js 14.2.15 (React 18, TypeScript)
+  - Puerto: `http://localhost:3000`
+  - Store: Zustand con persistencia
+  - Charts: Recharts
+  - UI: Tailwind CSS, Framer Motion, Radix UI
+
+- **Backend**: FastAPI (Python)
+  - Puerto: `http://localhost:8000`
+  - API REST en `/api/*`
+  - Parsers: openpyxl para Excel
+
+- **Base de Datos**: SQLite (100% local, NO Docker)
+  - Archivo: `arari-app/api/arari_pro.db`
+  - Tamaño: ~1.2 MB
+  - Portátil: copiar/mover el archivo .db
+
+### Iniciar Servidores
+
+```bash
+# Terminal 1 - Backend (FastAPI)
+cd arari-app/api
+python3 -m uvicorn main:app --reload --port 8000
+
+# Terminal 2 - Frontend (Next.js)
+cd arari-app
+npm run dev
+```
+
+### Dependencias Backend
+```bash
+cd arari-app/api
+pip install -r requirements.txt
+```
+
+Incluye: FastAPI, uvicorn, python-multipart, pydantic, openpyxl
+
+## Estado Actual de la Base de Datos
+
+**Última actualización**: 2025-12-09
+
+- **Empleados**: 959 registros (maestro completo)
+- **Registros nómina**: 0 (limpiado - esperando Excel real)
+- **Settings**: Configurado (雇用保険 2025: 0.90%)
+
+**Acción requerida**: Subir archivos Excel de 給与明細 vía `/upload`
+
 ## Notas Importantes
 
 1. **NO usar datos demo** - Solo datos reales del Excel
@@ -134,6 +183,37 @@ Estos 手当 se pagan al empleado pero **NO se facturan** al 派遣先:
 4. **Objetivo 15%** para 製造派遣, no 25%
 5. **単価** está en tabla `employees.billing_rate`
 6. **Non-billable allowances** (通勤手当（非）, 業務手当) son costo empresa pero no se facturan
+7. **Base de datos LOCAL** - SQLite, no requiere Docker ni servidor externo
+
+## Fixes Recientes y Problemas Resueltos
+
+### 2025-12-09: Setup y Correcciones
+1. **Fix employee_parser.py**: Método `_detect_columns` estaba incompleto (faltaba inicialización y loop)
+   - Archivo: `arari-app/api/employee_parser.py:147-166`
+   - Error: IndentationError al cargar el backend
+   - Solucionado: Agregado código completo del método
+
+2. **Limpieza de datos vacíos**: Eliminados 4200 registros de nómina con valores en 0
+   - Causa: Registros creados pero sin datos del Excel
+   - Solución: `DELETE FROM payroll_records` para empezar limpio
+
+3. **Instalación dependencias backend**:
+   - Paquetes: fastapi, uvicorn, python-multipart, pydantic, openpyxl
+   - `pip install -r requirements.txt` en `arari-app/api/`
+
+4. **Verificación servidores**:
+   - Backend FastAPI corriendo en puerto 8000 ✓
+   - Frontend Next.js corriendo en puerto 3000 ✓
+   - API respondiendo correctamente con datos de empleados ✓
+
+## Problemas Conocidos
+
+1. **Frontend se queda "cargando"**:
+   - Causa: Backend no estaba corriendo
+   - Solución: Iniciar ambos servidores (ver "Iniciar Servidores" arriba)
+
+2. **Employee parser syntax error**:
+   - Ya solucionado (ver fix 2025-12-09)
 
 ## Commits Relevantes
 
@@ -148,4 +228,5 @@ a2d3c88 feat: Support direct 有給金額 (paid leave amount) from Excel
 ```
 
 ---
-Última actualización: 2025-12-08
+**Última actualización**: 2025-12-09
+**Estado**: Sistema operativo, esperando carga de datos Excel
