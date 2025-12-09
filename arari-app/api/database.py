@@ -101,6 +101,7 @@ def init_db():
         ("night_pay", "REAL DEFAULT 0"),
         ("holiday_pay", "REAL DEFAULT 0"),
         ("overtime_over_60h_pay", "REAL DEFAULT 0"),
+        ("non_billable_allowances", "REAL DEFAULT 0"),  # 通勤手当（非）、業務手当等 - 会社負担のみ
     ]
 
     for col_name, col_type in new_columns:

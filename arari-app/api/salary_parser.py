@@ -767,7 +767,8 @@ class SalaryStatementParser:
                 'night_pay': night_pay,
                 'holiday_pay': holiday_pay,
                 'overtime_over_60h_pay': overtime_over_60h_pay,
-                'other_allowances': other_allowances_total + non_billable_total,  # Includes non-billable
+                'other_allowances': other_allowances_total,  # Only billable allowances
+                'non_billable_allowances': non_billable_total,  # 通勤手当（非）、業務手当等 - company cost only
                 'transport_allowance': transport_allowance,
                 'gross_salary': gross_salary,
 
