@@ -179,19 +179,28 @@ def recalculate_all_records(dry_run: bool = False):
         # 労災保険 = 0.3%
         company_workers_comp = round(gross_salary * WORKERS_COMP_RATE)
 
-        # 有給コスト: usar valor directo si existe
-        if paid_leave_amount > 0:
-            paid_leave_cost = paid_leave_amount
-        else:
-            paid_leave_cost = paid_leave_hours * hourly_rate
+        # ================================================================
+        # 有給コスト (Paid Leave Cost) - FOR DISPLAY ONLY
+        # ================================================================
+        # IMPORTANT: 有給支給 (paid_leave_amount) is ALREADY INCLUDED in gross_salary
+        # when it appears in the Excel 支給の部 section.
+        #
+        # We store paid_leave_amount for display purposes, but do NOT add it
+        # again to total_company_cost (that would be double-counting).
+        #
+        # The formula is:
+        #   会社総コスト = 総支給額 + 法定福利費(会社負担)
+        #
+        # Where 法定福利費(会社負担) = 健康保険(会社) + 厚生年金(会社) + 雇用保険 + 労災保険
+        # ================================================================
 
-        # Costo total (sin duplicar transport_allowance)
+        # Costo total - DO NOT add paid_leave_cost (already in gross_salary)
         total_company_cost = (
             gross_salary +
             company_social_insurance +
             company_employment_insurance +
-            company_workers_comp +
-            paid_leave_cost
+            company_workers_comp
+            # ❌ NO paid_leave_cost - ya está en gross_salary!
         )
 
         # Margen bruto

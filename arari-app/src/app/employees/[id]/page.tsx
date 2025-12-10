@@ -9,7 +9,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAppStore } from '@/store/appStore'
-import { formatYen } from '@/lib/utils'
+import { formatYen, comparePeriods } from '@/lib/utils'
 import { PayrollSlipModal } from '@/components/payroll/PayrollSlipModal'
 
 export default function EmployeeDetailPage({ params }: { params: { id: string } }) {
@@ -34,9 +34,10 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
     const employee = employees.find(e => e.employeeId === employeeId)
 
     // Sort records descending by period (newest first)
+    // Use comparePeriods to handle 2025年10月 > 2025年9月 correctly
     const employeeRecords = payrollRecords
         .filter(r => r.employeeId === employeeId)
-        .sort((a, b) => b.period.localeCompare(a.period))
+        .sort((a, b) => comparePeriods(b.period, a.period))
 
     const handleBack = () => {
         router.back()

@@ -13,13 +13,26 @@ Este archivo contiene información importante para futuras sesiones de Claude.
 
 ## Fórmulas de Cálculo Importantes
 
-### Costo Total de la Empresa (会社総コスト)
+### Costo Total de la Empresa (会社総コスト) - FÓRMULA CORRECTA
 ```
 会社総コスト = 総支給額 (gross_salary)
-             + 社会保険(会社負担) = 本人負担と同額 (労使折半)
-             + 雇用保険(0.95%) ← 2024年度 rate
+             + 健康保険(会社負担) = 本人負担と同額 (労使折半)
+             + 厚生年金(会社負担) = 本人負担と同額 (労使折半)
+             + 雇用保険(0.90%) ← 2025年度 rate
              + 労災保険(0.3%) ← 製造業の場合
-             + 有給コスト = 有給時間 × 時給
+```
+
+**⚠️ IMPORTANTE - NO DUPLICAR 有給コスト:**
+- 有給支給 (paid_leave_amount) YA ESTÁ INCLUIDO en 総支給額
+- NO se debe sumar de nuevo al 会社総コスト
+- Ver fix del 2025-12-10 para detalles
+
+### 法定福利費 (会社負担) - Desglose Completo
+```
+法定福利費 = 健康保険(会社分) = social_insurance (本人と同額)
+           + 厚生年金(会社分) = welfare_pension (本人と同額)
+           + 雇用保険 = gross_salary × 0.90%
+           + 労災保険 = gross_salary × 0.30%
 ```
 
 ### Facturación (請求金額)
@@ -59,10 +72,17 @@ Este archivo contiene información importante para futuras sesiones de Claude.
 ### payroll_records (給与明細)
 - `employee_id`, `period`: Clave única
 - Horas: `work_hours`, `overtime_hours`, `overtime_over_60h`, `night_hours`, `holiday_hours`
-- Pagos: `base_salary`, `overtime_pay`, `night_pay`, `holiday_pay`, `gross_salary`
-- Seguros (本人): `social_insurance`, `employment_insurance`
+- 有給: `paid_leave_days`, `paid_leave_hours`, `paid_leave_amount`
+- Pagos: `base_salary`, `overtime_pay`, `night_pay`, `holiday_pay`, `overtime_over_60h_pay`, `gross_salary`
+- 手当: `transport_allowance`, `other_allowances`, `non_billable_allowances`
+- Seguros (本人): `social_insurance`, `welfare_pension`, `employment_insurance`
 - Seguros (会社): `company_social_insurance`, `company_employment_insurance`, `company_workers_comp`
-- Resultado: `billing_amount`, `total_company_cost`, `gross_profit`, `profit_margin`
+- Impuestos: `income_tax`, `resident_tax`, `other_deductions`
+- Resultado: `billing_amount`, `total_company_cost`, `gross_profit`, `profit_margin`, `net_salary`
+
+**Campos añadidos en 2025-12-10:**
+- `welfare_pension`: 厚生年金保険料 (本人負担) - Antes no se parseaba del Excel
+- `non_billable_allowances`: 非請求手当 (通勤手当（非）, 業務手当等)
 
 ## Tasas de Seguro (2025年度)
 
@@ -167,13 +187,19 @@ Incluye: FastAPI, uvicorn, python-multipart, pydantic, openpyxl
 
 ## Estado Actual de la Base de Datos
 
-**Última actualización**: 2025-12-09
+**Última actualización**: 2025-12-10
 
 - **Empleados**: 959 registros (maestro completo)
-- **Registros nómina**: 0 (limpiado - esperando Excel real)
+- **Registros nómina**: 0 (limpiado 2025-12-10 - esperando Excel con parser v4.0)
+- **Factory Templates**: 0 (limpiado para regenerar con nuevo parser)
 - **Settings**: Configurado (雇用保険 2025: 0.90%)
 
 **Acción requerida**: Subir archivos Excel de 給与明細 vía `/upload`
+
+**Razón de limpieza**: Los registros anteriores tenían:
+- welfare_pension = 0 (no se parseaba)
+- 会社総コスト duplicando paid_leave_cost
+- paid_leave_days = 0 (no se extraía del dynamic zone)
 
 ## Notas Importantes
 
@@ -184,6 +210,9 @@ Incluye: FastAPI, uvicorn, python-multipart, pydantic, openpyxl
 5. **単価** está en tabla `employees.billing_rate`
 6. **Non-billable allowances** (通勤手当（非）, 業務手当) son costo empresa pero no se facturan
 7. **Base de datos LOCAL** - SQLite, no requiere Docker ni servidor externo
+8. **⚠️ 有給支給 YA ESTÁ EN 総支給額** - NO sumar paid_leave_cost al total_company_cost
+9. **⚠️ 法定福利費 incluye 厚生年金** - company_social_insurance = 健康保険 + 厚生年金 (ambos 労使折半)
+10. **⚠️ welfare_pension** se parsea de fila 32 en FALLBACK_ROW_POSITIONS
 
 ## Sistema de Templates para Excel Parser (NUEVO)
 
@@ -265,6 +294,224 @@ Cuando se sube un archivo Excel:
 
 ## Fixes Recientes y Problemas Resueltos
 
+### 2025-12-10: CORRECCIONES CRÍTICAS DE CÁLCULOS (Parser v4.0)
+
+#### Problema 1: 厚生年金 (welfare_pension) no aparecía
+**Síntoma**: En el modal de 粗利分析, la sección 控除の部 solo mostraba 健康保険, no 厚生年金.
+**Causa**: El parser no extraía welfare_pension del Excel (FALLBACK_ROW_POSITIONS faltaba la fila).
+**Solución**:
+- Archivo: `arari-app/api/salary_parser.py`
+- Agregado `'welfare_pension': 32` a FALLBACK_ROW_POSITIONS (línea ~110)
+- Ahora parsea la fila 32 donde está 厚生年金 en el Excel
+
+```python
+# FALLBACK_ROW_POSITIONS en salary_parser.py
+FALLBACK_ROW_POSITIONS = {
+    ...
+    'social_insurance': 31,    # 健康保険
+    'welfare_pension': 32,     # 厚生年金 ← AGREGADO
+    'employment_insurance': 33,
+    ...
+}
+```
+
+#### Problema 2: 会社総コスト estaba incorrecto (duplicaba 有給コスト)
+**Síntoma**: Empleado WATANABE mostraba 会社総コスト = ¥272,100 cuando debía ser ~¥295,670.
+**Causa**: `services.py` sumaba `paid_leave_cost` al `total_company_cost`, pero `paid_leave_amount` YA ESTÁ en `gross_salary`.
+**Solución**:
+- Archivo: `arari-app/api/services.py` (líneas 313-336)
+- ELIMINADO `paid_leave_cost` del cálculo de `total_company_cost`
+
+```python
+# services.py - CÓDIGO CORRECTO (líneas 331-336)
+total_company_cost = record.total_company_cost or (
+    record.gross_salary +              # Ya incluye paid_leave_amount
+    company_social_insurance +         # 健康保険 + 厚生年金 (会社分)
+    company_employment_insurance +     # 雇用保険 (0.90%)
+    company_workers_comp               # 労災保険 (0.30%)
+)
+# ❌ NO AGREGAR paid_leave_cost - ya está en gross_salary
+```
+
+#### Problema 3: 法定福利費 no incluía 厚生年金(会社分)
+**Síntoma**: 法定福利費 (会社負担) solo mostraba ~¥21,925 cuando debía incluir también 厚生年金.
+**Causa**: `company_social_insurance` solo usaba `social_insurance` (健康保険), no `welfare_pension`.
+**Solución**:
+- Archivo: `arari-app/api/services.py` (líneas 298-301)
+
+```python
+# services.py - CÓDIGO CORRECTO (líneas 298-301)
+welfare_pension = getattr(record, 'welfare_pension', 0) or 0
+company_social_insurance = record.company_social_insurance or (
+    record.social_insurance + welfare_pension  # 健康保険 + 厚生年金
+)
+```
+
+#### Problema 4: 有給日数 = 0 cuando Excel tiene días
+**Síntoma**: Empleado 230916 mostraba 有給日数=0 pero 有給金額=¥12,000.
+**Causa**: El parser solo extraía `paid_leave_amount` del dynamic zone, no `paid_leave_days`.
+**Solución**:
+- Archivo: `arari-app/api/salary_parser.py`
+- Método: `_scan_dynamic_zone_for_employee` (líneas 540-597)
+- Ahora extrae días de la columna 'days' (mismo row que 有給/有給休暇)
+
+```python
+# salary_parser.py - _scan_dynamic_zone_for_employee
+days_col = base_col + offsets.get('days', 5)  # Column for days
+
+result = {
+    'paid_leave_amount': 0.0,
+    'paid_leave_days': 0.0,  # ← NUEVO
+    ...
+}
+
+# Cuando encuentra 有給/有給休暇:
+elif category == 'paid_leave_amount':
+    result['paid_leave_amount'] += value
+    # Extraer días de la misma fila, columna diferente
+    days_value = self._get_numeric(ws, row, days_col)
+    if days_value > 0:
+        result['paid_leave_days'] += days_value  # ← NUEVO
+```
+
+#### Problema 5: 60H超残業 horas no se calculaban automáticamente
+**Síntoma**: Algunos empleados con overtime > 60h no mostraban las horas extra correctamente.
+**Causa**: El parser no calculaba automáticamente overtime_over_60h cuando no aparecía explícitamente.
+**Solución**:
+- Archivo: `arari-app/api/salary_parser.py`
+- Método: `_extract_employee_data` (línea ~750)
+
+```python
+# Si overtime > 60 y no hay overtime_over_60h explícito, calcularlo
+if overtime_hours > 60 and overtime_over_60h <= 0:
+    overtime_over_60h = overtime_hours - 60
+    overtime_hours = 60  # Las primeras 60h son overtime normal
+```
+
+#### Problema 6: 通勤費 se contaba DOBLE (transport + non_billable)
+**Síntoma**: 通勤手当 y 非請求手当 mostraban el mismo valor (¥5,100).
+**Causa**: `通勤費` aparecía en DOS listas del parser:
+  - `FIELD_PATTERNS['transport_allowance']` → se detectaba como campo fijo
+  - `DYNAMIC_ZONE_LABELS['通勤費']` → se procesaba como non_billable
+**Solución**:
+- Archivo: `arari-app/api/salary_parser.py`
+- Removido `通勤費` de FIELD_PATTERNS['transport_allowance'] (línea ~75)
+- Agregado `通勤費` a KNOWN_ALLOWANCES (línea ~105)
+
+```python
+# salary_parser.py - ANTES (línea 75)
+'transport_allowance': ['通勤費', '交通費', '通勤手当'],
+
+# salary_parser.py - DESPUÉS (línea 75-77)
+# NOTE: 通勤費 is now ONLY in DYNAMIC_ZONE_LABELS as 'non_billable'
+# This prevents duplicate counting (transport + non_billable)
+'transport_allowance': ['交通費', '通勤手当'],  # 通勤費 removed
+
+# También agregado a KNOWN_ALLOWANCES:
+KNOWN_ALLOWANCES = [
+    ...
+    '通勤費',  # Added - now handled as non_billable in dynamic zone
+]
+```
+
+#### Problema 7: recalculate_margins.py también duplicaba paid_leave_cost
+**Síntoma**: Después de ejecutar recalculate_margins.py, 会社総コスト seguía incorrecto.
+**Causa**: El script también sumaba paid_leave_cost (líneas 182-204).
+**Solución**:
+- Archivo: `arari-app/api/recalculate_margins.py`
+- Eliminado paid_leave_cost del cálculo de total_company_cost
+
+```python
+# recalculate_margins.py - CÓDIGO CORRECTO (líneas 197-204)
+total_company_cost = (
+    gross_salary +
+    company_social_insurance +
+    company_employment_insurance +
+    company_workers_comp
+    # ❌ NO paid_leave_cost - ya está en gross_salary!
+)
+```
+
+#### Problema 8: database.py agregaba paid_leave_cost en test data
+**Síntoma**: Datos de prueba tenían cálculos incorrectos.
+**Causa**: El método de generación de datos de prueba sumaba paid_leave_cost.
+**Solución**:
+- Archivo: `arari-app/api/database.py` (líneas 260-265)
+- Corregido para no duplicar paid_leave_cost
+
+#### Problema 9: 通勤手当(非) con paréntesis ASCII no se detectaba
+**Síntoma**: El Excel usa `通勤手当(非)` con paréntesis ASCII (半角), pero el parser solo tenía la versión con paréntesis full-width (全角).
+**Causa**: `NON_BILLABLE_ALLOWANCES` y `DYNAMIC_ZONE_LABELS` solo tenían `通勤手当（非）` con 全角 brackets.
+**Solución**:
+- Archivo: `arari-app/api/salary_parser.py`
+- Agregado `通勤手当(非)` (半角 brackets) a ambas listas
+
+```python
+# salary_parser.py - NON_BILLABLE_ALLOWANCES (líneas 110-118)
+NON_BILLABLE_ALLOWANCES = [
+    '通勤手当',        # Transport allowance
+    '通勤手当（非）',   # Transport allowance (non-taxable) - 全角 brackets
+    '通勤手当(非)',    # Transport allowance (non-taxable) - 半角 brackets ← NUEVO
+    '通勤費',          # Transport cost
+    '業務手当',        # Work allowance
+]
+
+# salary_parser.py - DYNAMIC_ZONE_LABELS (líneas 177-180)
+DYNAMIC_ZONE_LABELS = {
+    ...
+    '通勤手当(非)': 'non_billable',   # 半角 brackets ← YA ESTABA
+    '通勤手当（非）': 'non_billable', # 全角 brackets
+    ...
+}
+```
+
+**Importante para futuras IAs**: El Excel de 給与明細 **siempre** usa `通勤手当(非)` con paréntesis ASCII (半角), no con paréntesis japoneses (全角). Ambas variantes deben estar en las listas del parser.
+
+### Resumen de Archivos Modificados (2025-12-10)
+
+| Archivo | Cambio | Líneas |
+|---------|--------|--------|
+| `salary_parser.py` | Agregar welfare_pension a FALLBACK_ROW_POSITIONS | ~120 |
+| `salary_parser.py` | Extraer paid_leave_days del dynamic zone | 540-597 |
+| `salary_parser.py` | Auto-calcular overtime_over_60h | ~750 |
+| `salary_parser.py` | Remover 通勤費 de transport_allowance (evita duplicación) | 75-77 |
+| `salary_parser.py` | Agregar 通勤費 a KNOWN_ALLOWANCES | ~105 |
+| `salary_parser.py` | Agregar 通勤手当(非) 半角 a NON_BILLABLE_ALLOWANCES | 110-118 |
+| `services.py` | Incluir welfare_pension en company_social_insurance | 298-301 |
+| `services.py` | Eliminar paid_leave_cost duplicado | 331-336 |
+| `recalculate_margins.py` | Eliminar paid_leave_cost de total_company_cost | 197-204 |
+| `database.py` | Eliminar paid_leave_cost de cálculo de test data | 260-265 |
+| `PayrollSlipModal.tsx` | Mostrar 厚生年金 en 控除の部 y 法定福利費 | 303-308, 556-560 |
+
+### Base de Datos Limpiada (2025-12-10)
+```sql
+-- Se eliminaron todos los registros para forzar re-parseo con código correcto
+DELETE FROM payroll_records;
+DELETE FROM factory_templates;
+```
+**Acción requerida**: Subir Excel nuevamente en `/upload`
+
+### Verificación de Fixes
+
+Para verificar que los fixes funcionan correctamente después de subir Excel:
+
+1. **通勤手当 y 非請求手当 NO deben tener el mismo valor**
+   - Si Excel tiene `通勤費` (no `通勤手当`), entonces:
+     - `transport_allowance` = 0 (correcto)
+     - `non_billable_allowances` = valor de 通勤費 (correcto)
+
+2. **会社総コスト debe cumplir esta fórmula:**
+   ```
+   会社総コスト = 総支給額 + 健康保険(会社) + 厚生年金(会社) + 雇用保険(0.90%) + 労災保険(0.30%)
+   ```
+   - NO debe incluir paid_leave_cost (ya está en 総支給額)
+   - NO debe incluir transport_allowance (ya está en 総支給額)
+
+3. **有給日数 debe mostrar días cuando 有給金額 > 0**
+   - El parser ahora extrae días de la columna 'days' en la zona dinámica
+
+---
+
 ### 2025-12-09: Setup y Correcciones
 1. **Fix employee_parser.py**: Método `_detect_columns` estaba incompleto (faltaba inicialización y loop)
    - Archivo: `arari-app/api/employee_parser.py:147-166`
@@ -293,6 +540,61 @@ Cuando se sube un archivo Excel:
 2. **Employee parser syntax error**:
    - Ya solucionado (ver fix 2025-12-09)
 
+3. **Error 404 en /api/statistics** (SOLUCIONADO 2025-12-10):
+   - Causa: `Sidebar.tsx:118` usaba `fetch('/api/statistics')` (relativo)
+   - Esto llamaba a `localhost:3000` (Next.js) en lugar de `localhost:8000` (FastAPI)
+   - Solución: Cambiado a `fetch('http://localhost:8000/api/statistics')`
+   - Archivo corregido: `arari-app/src/components/layout/Sidebar.tsx`
+
+4. **Horas extras calculadas incorrectamente** (SOLUCIONADO 2025-12-10):
+   - **Problema**: Si overtime_hours = 73, se mostraba 73h en 残業 + 13h en 60H超過 = 86h total (incorrecto)
+   - **Correcto**: 残業 máximo 60h + 60H超過 13h = 73h total
+   - **Solución**: En `salary_parser.py`, después de calcular overtime_over_60h, cap overtime_hours a 60:
+     ```python
+     overtime_over_60h = max(0, overtime_hours - 60) if overtime_hours > 60 else 0
+     overtime_hours = min(overtime_hours, 60)  # Cap at 60
+     ```
+   - **Archivo**: `arari-app/api/salary_parser.py:683-685`
+
+5. **Minutos de horas no se parseaban** (SOLUCIONADO 2025-12-10):
+   - **Problema**: Excel tiene horas en columna 4 y minutos en columna 10 (73h 30m), pero solo se leía la columna de horas (73h)
+   - **Solución**: Nueva función `_get_hours_with_minutes()` que lee ambas columnas y convierte a decimal
+   - **Lógica inteligente**: Si el valor ya tiene decimales (13.5), no suma minutos; si es entero (73), busca minutos
+   - **Archivo**: `arari-app/api/salary_parser.py:799-839`
+
+6. **Orden de meses incorrecto** (SOLUCIONADO 2025-12-10):
+   - **Problema**: 2025年10月 aparecía después de 2025年2月 (ordenamiento alfabético "10" < "2")
+   - **Solución**: Nueva función `comparePeriods()` en utils.ts que parsea año y mes para ordenar numéricamente
+   - **Archivos corregidos**:
+     - `arari-app/src/lib/utils.ts` (nueva función)
+     - `arari-app/src/app/employees/[id]/page.tsx`
+     - `arari-app/src/components/employees/EmployeeDetailModal.tsx`
+
+## Reglas de Cálculo Importantes
+
+### Horas Extras (残業)
+```
+Si overtime_hours_raw > 60:
+    overtime_hours = 60 (máximo)
+    overtime_over_60h = overtime_hours_raw - 60
+Else:
+    overtime_hours = overtime_hours_raw
+    overtime_over_60h = 0
+
+# Ejemplo: 73.5h de overtime
+# → overtime_hours = 60h (×1.25)
+# → overtime_over_60h = 13.5h (×1.5)
+```
+
+### Formato de Horas en Excel
+El Excel puede tener TRES formatos:
+1. **Columnas separadas**: Horas en col 4, Minutos en col 10 → Se convierte a decimal
+   - Ejemplo: 73h en col 4, 30m en col 10 → 73.5h
+2. **Decimal directo**: Ya viene como 13.5 en una celda → Se usa tal cual
+3. **Minutos totales (プレテック)**: Horas=0, Minutos=total en minutos
+   - Ejemplo: 0h en col 4, 10080m en col 10 → 168h (10080÷60)
+   - Detectado automáticamente cuando hours=0 y minutes>=60
+
 ## Commits Relevantes
 
 ```
@@ -305,6 +607,37 @@ a2d3c88 feat: Support direct 有給金額 (paid leave amount) from Excel
 9da2017 fix: Correct gross margin calculation per Japanese standards
 ```
 
+## Verificación de Cálculos (Ejemplo: WATANABE 240321)
+
+Después de subir el Excel, los valores esperados para el empleado 240321 son:
+
+| Campo | Valor Excel | Debe aparecer en App |
+|-------|-------------|----------------------|
+| 総支給額 | ¥238,975 | ✓ grossSalary |
+| 健康保険 (本人) | ¥19,057 | ✓ socialInsurance |
+| 厚生年金 (本人) | ¥34,770 | ✓ welfarePension |
+| 健康保険 (会社) | ¥19,057 | = socialInsurance (労使折半) |
+| 厚生年金 (会社) | ¥34,770 | = welfarePension (労使折半) |
+| 雇用保険 (会社) | ~¥2,151 | grossSalary × 0.90% |
+| 労災保険 (会社) | ~¥717 | grossSalary × 0.30% |
+
+**Cálculo esperado de 会社総コスト:**
+```
+会社総コスト = 238,975 (総支給額)
+            + 19,057 (健康保険 会社)
+            + 34,770 (厚生年金 会社)
+            + 2,151 (雇用保険 0.90%)
+            + 717 (労災保険 0.30%)
+            = ¥295,670
+```
+
+**UI debe mostrar en 粗利分析 > 法定福利費:**
+- 健康保険 (会社分): ¥19,057
+- 厚生年金 (会社分): ¥34,770
+- 雇用保険 (0.90%): ¥2,151
+- 労災保険 (0.3%): ¥717
+- **Total 法定福利費**: ¥56,695
+
 ---
-**Última actualización**: 2025-12-09
-**Estado**: Sistema operativo con parser de templates v3.0
+**Última actualización**: 2025-12-10
+**Estado**: Sistema operativo con parser v4.0 (correcciones de 厚生年金, 有給日数, y 会社総コスト)

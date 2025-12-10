@@ -313,27 +313,26 @@ class PayrollService:
         # ================================================================
         # 有給コスト (Paid Leave Cost) Calculation
         # ================================================================
-        # IMPORTANT: 有給 cost is ADDITIONAL to gross_salary
-        # - gross_salary (総支給額) = what employee receives in their paycheck
-        # - paid_leave_cost = company's additional cost for paid leave (not in paycheck)
+        # IMPORTANT: 有給支給 (paid_leave_amount) is ALREADY INCLUDED in gross_salary
+        # when it appears in the Excel 支給の部 section.
         #
-        # If paid_leave_amount is provided in Excel: use it directly
-        # Otherwise: calculate as paid_leave_hours × hourly_rate
+        # We store paid_leave_amount for display purposes, but do NOT add it
+        # again to total_company_cost (that would be double-counting).
+        #
+        # The formula is:
+        #   会社総コスト = 総支給額 + 法定福利費(会社負担)
+        #
+        # Where 法定福利費(会社負担) = 健康保険(会社) + 厚生年金(会社) + 雇用保険 + 労災保険
         # ================================================================
         paid_leave_amount = getattr(record, 'paid_leave_amount', 0) or 0
-        if paid_leave_amount > 0:
-            paid_leave_cost = paid_leave_amount
-        else:
-            paid_leave_cost = record.paid_leave_hours * hourly_rate
 
+        # NOTE: paid_leave_amount is already in gross_salary - DO NOT add again
         # NOTE: transport_allowance is already included in gross_salary (総支給額)
-        # Paid leave cost is ADDED separately (not included in gross_salary)
         total_company_cost = record.total_company_cost or (
             record.gross_salary +
             company_social_insurance +
             company_employment_insurance +
-            company_workers_comp +
-            paid_leave_cost
+            company_workers_comp
         )
 
         # Calculate profit

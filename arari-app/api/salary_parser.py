@@ -72,7 +72,9 @@ class SalaryStatementParser:
         'night_pay': ['深夜手当', '深夜割増', '深夜代'],  # Con 手当/割増/代
         'holiday_pay': ['休日手当', '休日割増', '休出手当'],  # Con 手当/割増
         'overtime_over_60h_pay': ['60H過手当', '60時間超手当', '60H超手当'],
-        'transport_allowance': ['通勤費', '交通費', '通勤手当'],
+        # NOTE: 通勤費 is now ONLY in DYNAMIC_ZONE_LABELS as 'non_billable'
+        # This prevents duplicate counting (transport + non_billable)
+        'transport_allowance': ['交通費', '通勤手当'],  # 通勤費 removed - handled in dynamic zone
         'paid_leave_amount': ['有給金額', '有休金額', '有給手当', '有給支給'],
 
         # Deductions (控除)
@@ -100,6 +102,7 @@ class SalaryStatementParser:
         '残業手当', '時間外手当', '深夜手当', '休日手当', '休出手当',
         '60H過手当', '60時間超手当', '通勤手当', '有給手当',
         '残業代', '深夜代', '深夜割増', '休日割増',
+        '通勤費',  # Added - now handled as non_billable in dynamic zone
     ]
 
     # ================================================================
@@ -108,7 +111,8 @@ class SalaryStatementParser:
     # ================================================================
     NON_BILLABLE_ALLOWANCES = [
         '通勤手当',        # Transport allowance
-        '通勤手当（非）',   # Transport allowance (non-taxable)
+        '通勤手当（非）',   # Transport allowance (non-taxable) - 全角 brackets
+        '通勤手当(非)',    # Transport allowance (non-taxable) - 半角 brackets
         '通勤費',          # Transport cost
         '業務手当',        # Work allowance
     ]
@@ -148,6 +152,7 @@ class SalaryStatementParser:
         'label': 2,        # Labels en col 3 (base_col=1, offset=2) ← CORREGIDO
         'value': 3,        # VALUES (salarios, horas) en col 4 (base_col=1, offset=3)
         'days': 5,         # DAYS (work_days) en col 6 (base_col=1, offset=5)
+        'minutes': 9,      # MINUTES para horas (col 10) - usado para convertir HH:MM a decimal
     }
 
     # ================================================================
@@ -528,6 +533,7 @@ class SalaryStatementParser:
             Dict with:
                 - overtime_over_60h_pay: float
                 - paid_leave_amount: float
+                - paid_leave_days: float (NEW - extracted from 'days' column)
                 - non_billable_total: float
                 - non_billable_details: List[str]
                 - other_allowances_total: float
@@ -536,10 +542,12 @@ class SalaryStatementParser:
         offsets = self.current_column_offsets or self.COLUMN_OFFSETS
         label_col = base_col + offsets.get('label', 1)
         value_col = base_col + offsets.get('value', 3)
+        days_col = base_col + offsets.get('days', 5)  # Column for days (有給日数)
 
         result = {
             'overtime_over_60h_pay': 0.0,
             'paid_leave_amount': 0.0,
+            'paid_leave_days': 0.0,  # NEW: 有給日数 from dynamic zone
             'non_billable_total': 0.0,
             'non_billable_details': [],
             'other_allowances_total': 0.0,
@@ -561,12 +569,8 @@ class SalaryStatementParser:
             if not label_str or label_str in ['', '給', '額']:
                 continue
 
-            # Get the value
+            # Get the value (yen amount)
             value = self._get_numeric(ws, row, value_col)
-
-            # Skip if no value
-            if value == 0:
-                continue
 
             # Check against known labels
             label_normalized = label_str.replace(' ', '').replace('　', '')
@@ -579,7 +583,12 @@ class SalaryStatementParser:
                     if category == 'overtime_over_60h_pay':
                         result['overtime_over_60h_pay'] += value
                     elif category == 'paid_leave_amount':
+                        # Extract BOTH the amount (value) AND the days from this row
                         result['paid_leave_amount'] += value
+                        # Get days from 'days' column (same row, different column)
+                        days_value = self._get_numeric(ws, row, days_col)
+                        if days_value > 0:
+                            result['paid_leave_days'] += days_value
                     elif category == 'non_billable':
                         result['non_billable_total'] += value
                         result['non_billable_details'].append(f"{label_str}=¥{value:,.0f}")
@@ -589,7 +598,7 @@ class SalaryStatementParser:
                     break
 
             # If not matched but looks like an allowance, add to other_allowances
-            if not matched and self._is_allowance(label_str):
+            if not matched and self._is_allowance(label_str) and value > 0:
                 result['other_allowances_total'] += value
                 result['other_allowances_details'].append(f"{label_str}=¥{value:,.0f}")
 
@@ -657,10 +666,11 @@ class SalaryStatementParser:
             work_days = self._get_numeric(ws, work_days_row, base_col + offsets.get('days', 5))
 
             paid_leave_days = self._get_field_value(ws, 'paid_leave_days', base_col)
-            work_hours = self._get_field_value(ws, 'work_hours', base_col)
-            overtime_hours = self._get_field_value(ws, 'overtime_hours', base_col)
-            night_hours = self._get_field_value(ws, 'night_hours', base_col)
-            holiday_hours = self._get_field_value(ws, 'holiday_hours', base_col)
+            # Use _get_hours_with_minutes for hour fields to include minutes (73h 30m -> 73.5)
+            work_hours = self._get_hours_with_minutes(ws, 'work_hours', base_col)
+            overtime_hours = self._get_hours_with_minutes(ws, 'overtime_hours', base_col)
+            night_hours = self._get_hours_with_minutes(ws, 'night_hours', base_col)
+            holiday_hours = self._get_hours_with_minutes(ws, 'holiday_hours', base_col)
 
             # NOTE: overtime_over_60h_pay is in DYNAMIC ZONE
             # overtime_over_60h (hours) is CALCULATED from overtime_hours when > 60
@@ -669,7 +679,10 @@ class SalaryStatementParser:
             # Calculate overtime_over_60h hours:
             # If overtime_hours > 60, the excess goes to overtime_over_60h
             # Example: 73h overtime → 60h normal overtime + 13h over-60h
+            # IMPORTANT: overtime_hours debe ser máximo 60, el resto va a overtime_over_60h
             overtime_over_60h = max(0, overtime_hours - 60) if overtime_hours > 60 else 0
+            # Cap overtime_hours at 60 (excess already moved to overtime_over_60h)
+            overtime_hours = min(overtime_hours, 60)
 
             base_salary = self._get_field_value(ws, 'base_salary', base_col)
             overtime_pay = self._get_field_value(ws, 'overtime_pay', base_col)
@@ -693,21 +706,26 @@ class SalaryStatementParser:
             net_salary = self._get_field_value(ws, 'net_salary', base_col)
 
             # ================================================================
-            # DYNAMIC ZONE SCANNING (Rows 20-29)  
+            # DYNAMIC ZONE SCANNING (Rows 20-29)
             # ================================================================
             # Scan for employee-specific allowances in the dynamic zone
             dynamic_data = self._scan_dynamic_zone_for_employee(ws, base_col)
-            
+
             # Extract values from dynamic zone
             if 'overtime_over_60h_pay' in dynamic_data:
-                overtime_over_60h_pay =dynamic_data['overtime_over_60h_pay']
-            
+                overtime_over_60h_pay = dynamic_data['overtime_over_60h_pay']
+
             if 'paid_leave_amount' in dynamic_data:
                 paid_leave_amount = dynamic_data['paid_leave_amount']
-            
+
+            # NEW: Get paid_leave_days from dynamic zone if found
+            # (It's in the same row as 有給/有給休暇 but in the 'days' column)
+            if dynamic_data.get('paid_leave_days', 0) > 0:
+                paid_leave_days = dynamic_data['paid_leave_days']
+
             other_allowances_total = dynamic_data.get('other_allowances_total', 0)
             non_billable_total = dynamic_data.get('non_billable_total', 0)
-            
+
             # paid_leave_hours not available in this Excel format
             paid_leave_hours = 0
             
@@ -780,6 +798,55 @@ class SalaryStatementParser:
         offsets = self.current_column_offsets or self.COLUMN_OFFSETS
         col = base_col + offsets.get('value', 3)
         return self._get_numeric(ws, row, col)
+
+    def _get_hours_with_minutes(self, ws, field_name: str, base_col: int) -> float:
+        """Get hours value including minutes (HH:MM -> decimal hours)
+
+        Handles THREE Excel formats:
+        1. Separate columns: Hours in 'value' (col 4), Minutes in 'minutes' (col 10)
+           Example: 73h in col 4, 30m in col 10 -> 73.5
+        2. Single decimal value: Already decimal in 'value' column
+           Example: 13.5 in col 4 -> 13.5
+        3. Total minutes only: Hours=0, Minutes=total minutes (プレテック format)
+           Example: 0h in col 4, 10080m in col 10 -> 168.0 (10080/60)
+
+        Returns: hours as decimal (e.g., 73h 30m -> 73.5)
+        """
+        # Get the row for this field
+        if field_name in self.detected_fields:
+            row = self.detected_fields[field_name]
+        elif field_name in self.FALLBACK_ROW_POSITIONS:
+            row = self.FALLBACK_ROW_POSITIONS[field_name]
+        else:
+            return 0.0
+
+        offsets = self.current_column_offsets or self.COLUMN_OFFSETS
+
+        # Get hours from 'value' column
+        hours_col = base_col + offsets.get('value', 3)
+        hours = self._get_numeric(ws, row, hours_col)
+
+        # Check if hours already has decimal (e.g., 13.5)
+        # If yes, it's already in decimal format - don't add minutes
+        if hours != int(hours):
+            # Already decimal (e.g., 13.5), return as-is
+            return hours
+
+        # Hours is whole number, check for separate minutes column
+        minutes_col = base_col + offsets.get('minutes', 9)
+        minutes = self._get_numeric(ws, row, minutes_col)
+
+        # Format 3: Total minutes only (プレテック style)
+        # If hours is 0 and minutes is large (>=60), treat minutes as TOTAL minutes
+        if hours == 0 and minutes >= 60:
+            return minutes / 60.0
+
+        # Format 1: Normal HH:MM format (minutes is 0-59)
+        if 0 <= minutes < 60:
+            return hours + (minutes / 60.0)
+
+        # Minutes value is invalid (negative), ignore it
+        return hours
 
     def _parse_period(self, value) -> str:
         """Convert period string to standard format (YYYY年M月)"""

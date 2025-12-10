@@ -258,11 +258,11 @@ def insert_sample_data(conn):
 
             # Company costs (2024年度 rates)
             company_social_insurance = social_insurance  # Same as employee (労使折半)
-            company_employment_insurance = round(gross_salary * 0.0095)  # 0.95% (2024)
+            company_employment_insurance = round(gross_salary * 0.009)  # 0.90% (2025年度)
             company_workers_comp = round(gross_salary * 0.003)  # 労災保険 0.3%
-            paid_leave_cost = paid_leave_hours * hourly_rate
+            # NOTE: paid_leave is already in gross_salary, don't add again
             # NOTE: transport is already in gross_salary, don't add again
-            total_company_cost = gross_salary + company_social_insurance + company_employment_insurance + company_workers_comp + paid_leave_cost
+            total_company_cost = gross_salary + company_social_insurance + company_employment_insurance + company_workers_comp
 
             # Profit
             gross_profit = billing_amount - total_company_cost

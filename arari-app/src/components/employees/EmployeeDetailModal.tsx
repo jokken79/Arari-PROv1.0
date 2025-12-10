@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { formatYen, formatPercent, getProfitBgColor } from '@/lib/utils'
+import { formatYen, formatPercent, getProfitBgColor, comparePeriods } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 import type { Employee, PayrollRecord } from '@/types'
 
@@ -30,10 +30,11 @@ export function EmployeeDetailModal({ employee, isOpen, onClose }: EmployeeDetai
         setLoading(false)
       }
 
-      // Filter records for this employee and sort by period
+      // Filter records for this employee and sort by period (newest first)
+      // Use comparePeriods to handle 2025年10月 > 2025年9月 correctly
       const records = payrollRecords
         .filter(r => r.employeeId === employee.employeeId)
-        .sort((a, b) => b.period.localeCompare(a.period))
+        .sort((a, b) => comparePeriods(b.period, a.period))
 
       setEmployeeRecords(records)
     }

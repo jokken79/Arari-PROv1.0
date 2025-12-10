@@ -50,6 +50,29 @@ export function formatPeriod(year: number, month: number): string {
   return `${year}年${month}月`
 }
 
+// Compare two periods for sorting (handles 2025年10月 > 2025年9月 correctly)
+// Returns: negative if a < b, positive if a > b, 0 if equal
+export function comparePeriods(a: string, b: string): number {
+  const periodA = parsePeriod(a)
+  const periodB = parsePeriod(b)
+
+  // Handle invalid periods
+  if (!periodA && !periodB) return 0
+  if (!periodA) return 1  // Invalid periods go to end
+  if (!periodB) return -1
+
+  // Compare year first, then month
+  if (periodA.year !== periodB.year) {
+    return periodA.year - periodB.year
+  }
+  return periodA.month - periodB.month
+}
+
+// Sort periods descending (newest first): 2025年10月, 2025年9月, 2025年8月...
+export function sortPeriodsDescending(periods: string[]): string[] {
+  return [...periods].sort((a, b) => comparePeriods(b, a))
+}
+
 // Get color class based on profit margin
 export function getProfitColor(margin: number): string {
   if (margin >= 30) return 'text-emerald-500'
