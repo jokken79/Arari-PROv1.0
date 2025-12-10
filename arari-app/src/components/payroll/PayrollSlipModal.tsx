@@ -192,29 +192,64 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                         </div>
                                     </div>
 
-                                    {/* 有給休暇 Section */}
-                                    {((record.paidLeaveDays || 0) > 0 || (record.paidLeaveHours || 0) > 0 || (record.paidLeaveAmount || 0) > 0) && (
-                                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Gift className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                                <span className="text-xs font-bold text-green-700 dark:text-green-400">有給休暇</span>
+                                    {/* 有給休暇 Section - with automatic calculation */}
+                                    {((record.paidLeaveDays || 0) > 0 || (record.paidLeaveHours || 0) > 0 || (record.paidLeaveAmount || 0) > 0) && (() => {
+                                        // Calculate daily work hours for this factory
+                                        // Formula: work_hours ÷ work_days = hours per day
+                                        const dailyWorkHours = (record.workDays && record.workDays > 0 && record.workHours)
+                                            ? record.workHours / record.workDays
+                                            : 8 // Default to 8h if no data
+
+                                        // Calculate paid leave hours from amount
+                                        // Formula: paid_leave_amount ÷ hourly_rate = paid_leave_hours
+                                        const calculatedPaidLeaveHours = (record.paidLeaveAmount && employee.hourlyRate > 0)
+                                            ? record.paidLeaveAmount / employee.hourlyRate
+                                            : record.paidLeaveHours || 0
+
+                                        // Calculate paid leave days
+                                        // Formula: paid_leave_hours ÷ daily_work_hours = paid_leave_days
+                                        const calculatedPaidLeaveDays = dailyWorkHours > 0
+                                            ? calculatedPaidLeaveHours / dailyWorkHours
+                                            : record.paidLeaveDays || 0
+
+                                        return (
+                                            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Gift className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                                        <span className="text-xs font-bold text-green-700 dark:text-green-400">有給休暇</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-green-600/60 dark:text-green-400/60">
+                                                        1日 = {dailyWorkHours.toFixed(1)}h
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2 text-center">
+                                                    <div>
+                                                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70">取得日数</p>
+                                                        <p className="font-bold text-green-700 dark:text-green-300">
+                                                            {calculatedPaidLeaveDays.toFixed(1)}<span className="text-xs font-normal">日</span>
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70">有給時間</p>
+                                                        <p className="font-bold text-green-700 dark:text-green-300">
+                                                            {calculatedPaidLeaveHours.toFixed(0)}<span className="text-xs font-normal">h</span>
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70">有給金額</p>
+                                                        <p className="font-bold text-green-700 dark:text-green-300 text-sm">{formatYen(record.paidLeaveAmount || 0)}</p>
+                                                    </div>
+                                                </div>
+                                                {/* Calculation breakdown */}
+                                                <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
+                                                    <p className="text-[9px] text-green-600/60 dark:text-green-400/50 text-center">
+                                                        {formatYen(record.paidLeaveAmount || 0)} ÷ {formatYen(employee.hourlyRate)} = {calculatedPaidLeaveHours.toFixed(0)}h → {calculatedPaidLeaveHours.toFixed(0)}h ÷ {dailyWorkHours.toFixed(1)}h/日 = {calculatedPaidLeaveDays.toFixed(1)}日
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="grid grid-cols-3 gap-2 text-center">
-                                                <div>
-                                                    <p className="text-[10px] text-green-600/70 dark:text-green-400/70">取得日数</p>
-                                                    <p className="font-bold text-green-700 dark:text-green-300">{record.paidLeaveDays || 0}<span className="text-xs font-normal">日</span></p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] text-green-600/70 dark:text-green-400/70">有給時間</p>
-                                                    <p className="font-bold text-green-700 dark:text-green-300">{formatHours(record.paidLeaveHours)}<span className="text-xs font-normal">h</span></p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] text-green-600/70 dark:text-green-400/70">有給金額</p>
-                                                    <p className="font-bold text-green-700 dark:text-green-300 text-sm">{formatYen(record.paidLeaveAmount || 0)}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
+                                        )
+                                    })()}
 
                                     {/* 支給の部 */}
                                     <div>
@@ -260,14 +295,22 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                     highlight="rose"
                                                 />
                                             )}
-                                            {(record.paidLeaveAmount || 0) > 0 && (
-                                                <DetailRow
-                                                    label="有給支給"
-                                                    subLabel={`${record.paidLeaveDays || 0}日分`}
-                                                    value={record.paidLeaveAmount}
-                                                    highlight="green"
-                                                />
-                                            )}
+                                            {(record.paidLeaveAmount || 0) > 0 && (() => {
+                                                // Recalculate days for this section
+                                                const dailyHrs = (record.workDays && record.workDays > 0 && record.workHours)
+                                                    ? record.workHours / record.workDays : 8
+                                                const leaveHrs = employee.hourlyRate > 0
+                                                    ? (record.paidLeaveAmount || 0) / employee.hourlyRate : 0
+                                                const leaveDays = dailyHrs > 0 ? leaveHrs / dailyHrs : 0
+                                                return (
+                                                    <DetailRow
+                                                        label="有給支給"
+                                                        subLabel={`${leaveDays.toFixed(1)}日 (${leaveHrs.toFixed(0)}h)`}
+                                                        value={record.paidLeaveAmount}
+                                                        highlight="green"
+                                                    />
+                                                )
+                                            })()}
                                             {(record.transportAllowance || 0) > 0 && (
                                                 <DetailRow
                                                     label="通勤手当"

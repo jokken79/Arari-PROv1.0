@@ -115,7 +115,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   useEffect(() => {
     const fetchProfitStats = async () => {
       try {
-        const response = await fetch('/api/statistics')
+        const response = await fetch('http://localhost:8000/api/statistics')
         if (response.ok) {
           const data = await response.json()
 

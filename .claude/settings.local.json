@@ -1,19 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git clone:*)",
-      "Bash(tree:*)",
-      "Bash(python -m uvicorn:*)",
-      "Bash(npm run dev)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
       "Bash(curl:*)",
-      "Bash(python -c:*)",
-      "Bash(netstat:*)",
-      "Bash(findstr:*)",
-      "Bash(npx tsc:*)",
-      "Bash(taskkill:*)",
-      "Bash(timeout /t)",
-      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
-      "Bash(git add:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm install)",
+      "Bash(npx next dev)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(copy:*)",
+      "Bash(python:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

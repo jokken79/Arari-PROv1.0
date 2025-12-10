@@ -293,6 +293,12 @@ Cuando se sube un archivo Excel:
 2. **Employee parser syntax error**:
    - Ya solucionado (ver fix 2025-12-09)
 
+3. **Error 404 en /api/statistics** (SOLUCIONADO 2025-12-10):
+   - Causa: `Sidebar.tsx:118` usaba `fetch('/api/statistics')` (relativo)
+   - Esto llamaba a `localhost:3000` (Next.js) en lugar de `localhost:8000` (FastAPI)
+   - Solución: Cambiado a `fetch('http://localhost:8000/api/statistics')`
+   - Archivo corregido: `arari-app/src/components/layout/Sidebar.tsx`
+
 ## Commits Relevantes
 
 ```
@@ -306,5 +312,5 @@ a2d3c88 feat: Support direct 有給金額 (paid leave amount) from Excel
 ```
 
 ---
-**Última actualización**: 2025-12-09
+**Última actualización**: 2025-12-10
 **Estado**: Sistema operativo con parser de templates v3.0
