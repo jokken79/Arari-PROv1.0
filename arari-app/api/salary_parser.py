@@ -55,39 +55,48 @@ class SalaryStatementParser:
     # IMPORTANTE: Los patterns deben ser ESPECÍFICOS para evitar confusiones
     # - Para HORAS: usar patterns que NO contengan 手当/代/割増
     # - Para YEN (pagos): usar patterns que SÍ contengan 手当/代/割増 o 給
+    #
+    # ACTUALIZADO 2025-12-10: Integrado labels comprehensivos de ChinginGenerator
     # ================================================================
     FIELD_PATTERNS = {
         # Time data (時間データ) - SOLO patterns de HORAS, sin 手当/代
         # NOTA: paid_leave_hours NO existe en este Excel - no detectar
-        'work_days': ['出勤日数'],  # Solo exacto, evitar substring matching
-        'paid_leave_days': ['有給日数'],  # Solo exacto
-        'work_hours': ['労働時間'],  # Solo exacto para evitar confusión
-        'overtime_hours': ['残業時間'],  # Solo exacto - NO usar '残業' solo
-        'night_hours': ['深夜時間'],  # Solo exacto - NO usar '深夜' solo
-        'holiday_hours': ['休日時間'],  # Solo exacto
+        'work_days': ['出勤日数', '労働日数', '日数'],  # Ampliado con variantes
+        'paid_leave_days': ['有給日数', '有給'],  # Ampliado
+        'absence_days': ['欠勤日数', '欠勤'],  # NUEVO - días de ausencia
+        'work_hours': ['労働時間', '実働時'],  # Ampliado
+        'overtime_hours': ['残業時間', '所定時間外', '時間外労働'],  # Ampliado
+        'night_hours': ['深夜時間', '深夜労働時間'],  # Ampliado
+        'holiday_hours': ['休日時間', '休日労働'],  # Ampliado
 
         # Salary amounts (給与) - Patterns con 手当/代/割増/給
-        'base_salary': ['基本給', '基本賃金', '本給'],
-        'overtime_pay': ['残業手当', '時間外手当', '残業代'],  # Con 手当/代
-        'night_pay': ['深夜手当', '深夜割増', '深夜代'],  # Con 手当/割増/代
-        'holiday_pay': ['休日手当', '休日割増', '休出手当'],  # Con 手当/割増
+        'base_salary': ['基本給', '基本賃金', '本給', '基　本　給', '給与'],  # Ampliado con espacios japoneses
+        'overtime_pay': ['残業手当', '時間外手当', '残業代', '普通残業', '普通残業手当'],  # Ampliado
+        'night_pay': ['深夜手当', '深夜割増', '深夜代', '深夜残業', '深夜残業手当'],  # Ampliado
+        'holiday_pay': ['休日手当', '休日割増', '休出手当', '休日勤務', '休日勤務手当'],  # Ampliado
         'overtime_over_60h_pay': ['60H過手当', '60時間超手当', '60H超手当'],
         # NOTE: 通勤費 is now ONLY in DYNAMIC_ZONE_LABELS as 'non_billable'
         # This prevents duplicate counting (transport + non_billable)
-        'transport_allowance': ['交通費', '通勤手当'],  # 通勤費 removed - handled in dynamic zone
-        'paid_leave_amount': ['有給金額', '有休金額', '有給手当', '有給支給'],
+        'transport_allowance': ['交通費', '通勤手当', 'ガソリン', 'ガソリン代'],  # Ampliado con ガソリン
+        'paid_leave_amount': ['有給金額', '有休金額', '有給手当', '有給支給', '有給休暇', '有休手当'],  # Ampliado
 
-        # Deductions (控除)
-        # Deductions (控除)
-        'social_insurance': ['社会保険', '社保', '健康保険'],
+        # Deductions (控除) - AMPLIADO significativamente
+        'social_insurance': ['社会保険', '社保', '健康保険', '健康保険料'],  # Ampliado
         'welfare_pension': ['厚生年金', '厚生年金保険'],
-        'employment_insurance': ['雇用保険'],
-        'income_tax': ['所得税', '源泉税'],
+        'employment_insurance': ['雇用保険', '雇用保険料'],  # Ampliado
+        'social_insurance_total': ['社保計', '社会保険計', '社会保険料計'],  # NUEVO - total seguros
+        'income_tax': ['所得税', '源泉税', '源泉所得税'],  # Ampliado
         'resident_tax': ['住民税', '市民税'],
+        'rent_deduction': ['家賃', '寮費'],  # NUEVO - alquiler
+        'utilities': ['水道光熱', '光熱費', '電気代'],  # NUEVO - servicios
+        'advance_payment': ['前貸', '前借'],  # NUEVO - adelantos
+        'meal_cost': ['弁当', '弁当代', '食事代', '食事'],  # NUEVO - comida
+        'year_end_adjustment': ['年調過不足', '年末調整'],  # NUEVO - ajuste anual
 
-        # Totals
-        'gross_salary': ['総支給額', '支給合計', '総支給', '給与総額'],
-        'net_salary': ['差引支給額', '手取り', '振込額', '差引額'],
+        # Totals - AMPLIADO
+        'gross_salary': ['総支給額', '支給合計', '総支給', '給与総額', '合　　計', '合計'],
+        'net_salary': ['差引支給額', '手取り', '振込額', '差引額', '差引支給'],
+        'deduction_total': ['控除合計', '控除計'],  # NUEVO - total deducciones
     }
 
     # Patterns to detect ANY 手当 (allowance)
@@ -162,6 +171,7 @@ class SalaryStatementParser:
     DYNAMIC_ZONE_END = 29    # Última fila de la zona dinámica
 
     # Labels que pueden aparecer en la zona dinámica (20-29)
+    # ACTUALIZADO 2025-12-10: Integrado labels comprehensivos de ChinginGenerator
     DYNAMIC_ZONE_LABELS = {
         # Overtime over 60h
         '60H過残業': 'overtime_over_60h_pay',
@@ -169,29 +179,51 @@ class SalaryStatementParser:
         '60時間超': 'overtime_over_60h_pay',
         '60h超残業': 'overtime_over_60h_pay',
 
-        # Paid leave
+        # Paid leave (有給)
         '有給休暇': 'paid_leave_amount',
         '有給': 'paid_leave_amount',
         '有休': 'paid_leave_amount',
+        '有休手当': 'paid_leave_amount',
 
-        # Non-billable (company cost only)
+        # Non-billable (company cost only - 会社負担のみ)
         '通勤手当(非)': 'non_billable',
         '通勤手当（非）': 'non_billable',
         '業務手当': 'non_billable',
         '通勤費': 'non_billable',
+        'ガソリン': 'non_billable',  # Gasolina (transporte)
+        'ガソリン代': 'non_billable',  # Movido de other_allowance
 
-        # Other billable allowances
+        # Other billable allowances (手当 - facturables)
         '休業補償': 'other_allowance',
         '皆勤手当': 'other_allowance',
+        '皆勤賞': 'other_allowance',  # NUEVO - bonificación asistencia perfecta
         '変則手当': 'other_allowance',
         '土日手当': 'other_allowance',
         '繁忙期手当': 'other_allowance',
         '職務手当': 'other_allowance',
+        '役職手当': 'other_allowance',  # NUEVO - allowance por puesto
+        '資格手当': 'other_allowance',  # NUEVO - allowance por certificación
+        '特別手当': 'other_allowance',  # NUEVO - allowance especial
+        '調整手当': 'other_allowance',  # NUEVO - ajuste
         '段取手当': 'other_allowance',
         '交代手当': 'other_allowance',
         '部会賞金': 'other_allowance',
         '半日有給': 'other_allowance',
-        'ガソリン代': 'other_allowance',
+
+        # Deductions que pueden aparecer en zona dinámica
+        '家賃': 'rent_deduction',  # NUEVO - alquiler
+        '寮費': 'rent_deduction',  # NUEVO - tarifa dormitorio
+        '水道光熱': 'utilities',  # NUEVO - servicios
+        '光熱費': 'utilities',
+        '電気代': 'utilities',
+        '前貸': 'advance_payment',  # NUEVO - adelanto
+        '前借': 'advance_payment',
+        '弁当': 'meal_deduction',  # NUEVO - deducción comida
+        '弁当代': 'meal_deduction',
+        '食事代': 'meal_deduction',
+        '食事': 'meal_deduction',
+        '年調過不足': 'year_end_adjustment',  # NUEVO - ajuste anual
+        '年末調整': 'year_end_adjustment',
     }
 
     def __init__(self, use_intelligent_mode: bool = True, template_manager: Optional[TemplateManager] = None):
@@ -518,6 +550,27 @@ class SalaryStatementParser:
                 return True
         return False
 
+    def _normalize_label(self, label: Any) -> str:
+        """
+        Normaliza un label para comparación consistente.
+        Integrado de ChinginGenerator para mejor detección.
+
+        Handles:
+        - Full-width spaces (　) and regular spaces
+        - Parentheses and their contents
+        - Japanese interpunct (・)
+        """
+        if label is None:
+            return ""
+        text = str(label)
+        # Remover espacios japoneses (全角) y normales
+        text = text.replace('\u3000', '').replace(' ', '').replace('　', '')
+        # Remover paréntesis y contenido (ej: 通勤手当（非）→ 通勤手当)
+        text = re.sub(r'[（(].*?[）)]', '', text)
+        # Remover caracteres de formato japonés
+        text = text.replace('・', '').replace('･', '')
+        return text.strip()
+
     def _scan_dynamic_zone_for_employee(self, ws, base_col: int) -> Dict[str, Any]:
         """
         Scan rows 20-29 for a specific employee to find their allowances.
@@ -552,6 +605,12 @@ class SalaryStatementParser:
             'non_billable_details': [],
             'other_allowances_total': 0.0,
             'other_allowances_details': [],
+            # Nuevas deducciones del ChinginGenerator
+            'rent_deduction': 0.0,
+            'utilities': 0.0,
+            'advance_payment': 0.0,
+            'meal_deduction': 0.0,
+            'year_end_adjustment': 0.0,
         }
 
         # Scan rows 20-29 for this employee
@@ -595,6 +654,17 @@ class SalaryStatementParser:
                     elif category == 'other_allowance':
                         result['other_allowances_total'] += value
                         result['other_allowances_details'].append(f"{label_str}=¥{value:,.0f}")
+                    # NUEVAS categorías del ChinginGenerator (deducciones especiales)
+                    elif category == 'rent_deduction':
+                        result['rent_deduction'] += value
+                    elif category == 'utilities':
+                        result['utilities'] += value
+                    elif category == 'advance_payment':
+                        result['advance_payment'] += value
+                    elif category == 'meal_deduction':
+                        result['meal_deduction'] += value
+                    elif category == 'year_end_adjustment':
+                        result['year_end_adjustment'] += value
                     break
 
             # If not matched but looks like an allowance, add to other_allowances

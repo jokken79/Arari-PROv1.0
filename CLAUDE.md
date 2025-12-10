@@ -595,6 +595,52 @@ El Excel puede tener TRES formatos:
    - Ejemplo: 0h en col 4, 10080m en col 10 → 168h (10080÷60)
    - Detectado automáticamente cuando hours=0 y minutes>=60
 
+### 2025-12-10: Integración de ChinginGenerator Labels (Parser v4.1)
+
+Se integraron las mejores características del parser `ChinginGenerator-v4-PRO` para mejorar la detección de campos:
+
+#### Mejoras Integradas:
+
+1. **FIELD_PATTERNS ampliado** (~25 → ~50 labels):
+   - **Días**: Agregados `労働日数`, `日数` (work_days), `欠勤日数`, `欠勤` (absence_days - NUEVO)
+   - **Horas**: Agregados `実働時`, `所定時間外`, `時間外労働`, `深夜労働時間`, `休日労働`
+   - **Salario**: Agregados `基　本　給` (con espacios japoneses), `給与`, `普通残業`, `普通残業手当`, `深夜残業`, `休日勤務`
+   - **Transporte**: Agregados `ガソリン`, `ガソリン代`
+   - **Vacaciones**: Agregados `有給休暇`, `有休手当`
+   - **Deducciones**: Agregados `健康保険料`, `雇用保険料`, `社保計`, `社会保険計`, `社会保険料計`, `源泉所得税`
+   - **NUEVAS deducciones**: `家賃`, `寮費` (rent), `水道光熱`, `光熱費`, `電気代` (utilities), `前貸`, `前借` (advance), `弁当`, `弁当代`, `食事代`, `食事` (meal), `年調過不足`, `年末調整` (year-end)
+   - **Totales**: Agregados `合　　計`, `控除合計`, `控除計`, `差引支給`
+
+2. **DYNAMIC_ZONE_LABELS ampliado** (~20 → ~45 labels):
+   - **Non-billable**: Agregados `ガソリン`, `ガソリン代` (movidos de other_allowance)
+   - **Other allowances**: Agregados `皆勤賞`, `役職手当`, `資格手当`, `特別手当`, `調整手当`
+   - **NUEVAS categorías de deducciones en zona dinámica**:
+     - `rent_deduction`: 家賃, 寮費
+     - `utilities`: 水道光熱, 光熱費, 電気代
+     - `advance_payment`: 前貸, 前借
+     - `meal_deduction`: 弁当, 弁当代, 食事代, 食事
+     - `year_end_adjustment`: 年調過不足, 年末調整
+
+3. **Nueva función `_normalize_label()`**:
+   - Normaliza labels para comparación consistente
+   - Maneja espacios japoneses (全角) y normales
+   - Remueve paréntesis y contenido (ej: `通勤手当（非）` → `通勤手当`)
+   - Remueve caracteres de formato japonés (・, ･)
+
+#### Archivos Modificados:
+| Archivo | Cambio |
+|---------|--------|
+| `salary_parser.py` | FIELD_PATTERNS ampliado (~líneas 61-100) |
+| `salary_parser.py` | DYNAMIC_ZONE_LABELS ampliado (~líneas 173-227) |
+| `salary_parser.py` | Nueva función `_normalize_label()` (~líneas 553-572) |
+| `salary_parser.py` | `_scan_dynamic_zone_for_employee()` actualizado para nuevas categorías |
+
+#### Beneficios:
+- Mejor detección de campos en Excel con variantes de labels
+- Soporte para más tipos de deducciones
+- Detección más robusta de transporte (ガソリン ahora → non_billable)
+- Mejor manejo de espacios japoneses en labels
+
 ## Commits Relevantes
 
 ```
