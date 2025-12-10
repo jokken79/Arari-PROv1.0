@@ -29,15 +29,20 @@ class DBGenzaiXParser:
     """Parser for DBGenzaiX sheet containing employee master data"""
 
     # Column name mappings (case-insensitive, supports multiple names)
+    # Column name mappings (case-insensitive, supports multiple names)
     COLUMN_MAPPINGS = {
-        'employee_id': ['employee_id', 'emp_id', '社員id', '社員ID', '社員番号', 'empid', '社員№', '社員no', '社員ｎｏ'],
-        'name': ['name', '氏名', '名前'],
-        'name_kana': ['name_kana', 'kana', 'フリガナ', 'カナ'],
-        'hourly_rate': ['hourly_rate', '時給', '時間給', '時給額'],
+        'employee_id': [
+            'employee_id', 'emp_id', '社員id', '社員ID', '社員番号', 'empid', '社員№', 
+            '社員no', '社員ｎｏ', '従業員id', '従業員番号', 'id', 'no', 'no.', 'code', 
+            '社員コード', '従業員コード'
+        ],
+        'name': ['name', '氏名', '名前', '社員名', '従業員名'],
+        'name_kana': ['name_kana', 'kana', 'フリガナ', 'カナ', '氏名カナ', '氏名読み'],
+        'hourly_rate': ['hourly_rate', '時給', '時間給', '時給額', '基本時給'],
         'billing_rate': ['billing_rate', '単価', '請求単価', 'billing', '派遣単価', '売上単価', '請求単価(円)', '単価(円)', '支払単価', '時間単価'],
-        'dispatch_company': ['dispatch_company', '派遣会社', 'company', 'companies', '派遣先'],
-        'status': ['status', 'ステータス', '状態', '稼働状態', '現在'],
-        'hire_date': ['hire_date', '入社日', 'hire', '雇用日'],
+        'dispatch_company': ['dispatch_company', '派遣会社', 'company', 'companies', '派遣先', '派遣先名', '就業先'],
+        'status': ['status', 'ステータス', '状態', '稼働状態', '現在', '在籍状況'],
+        'hire_date': ['hire_date', '入社日', 'hire', '雇用日', '採用日'],
         'department': ['department', '部署', '所属', '部門', '配属先'],
     }
 
@@ -54,12 +59,12 @@ class DBGenzaiXParser:
     def parse_employees(self, file_path: str) -> Tuple[List[EmployeeRecord], Dict[str, int]]:
         """
         Parse employees from Excel file.
-
-        Args:
-            file_path: Path to Excel file (.xls or .xlsm)
-
-        Returns:
-            Tuple of (employees list, statistics dict)
+        
+        Logic:
+        1. Try to find 'DBGenzaiX' sheet.
+        2. If found, look for headers in first 10 rows.
+        3. If sheet not found (or no headers found), search ALL sheets.
+        4. First sheet with valid 'employee_id' header wins.
         """
         self.errors = []
         self.warnings = []
@@ -74,36 +79,70 @@ class DBGenzaiXParser:
         try:
             # Load workbook
             wb = openpyxl.load_workbook(file_path, data_only=True)
+            
+            target_sheet = None
+            header_row = None
+            col_indices = {}
 
-            # Find DBGenzaiX sheet (case-insensitive)
+            # Strategy 1: Look for DBGenzaiX sheet specifically
             sheet_name = self._find_sheet(wb, 'DBGenzaiX')
-            if not sheet_name:
-                self.errors.append("Hoja 'DBGenzaiX' no encontrada en el archivo")
+            if sheet_name:
+                sheet = wb[sheet_name]
+                found_row, indices = self._find_header_row(sheet)
+                if found_row and indices.get('employee_id'):
+                    target_sheet = sheet
+                    header_row = found_row
+                    col_indices = indices
+
+            # Strategy 2: If no valid DBGenzaiX, search ALL sheets
+            if not target_sheet:
+                print(f"[DEBUG] DBGenzaiX not found. Scanning {len(wb.sheetnames)} sheets: {wb.sheetnames}")
+                for name in wb.sheetnames:
+                    sheet = wb[name]
+                    print(f"[DEBUG] Checking sheet: {name}")
+                    found_row, indices = self._find_header_row(sheet)
+                    if found_row:
+                        print(f"[DEBUG] Found potential header in {name} at row {found_row}. Indices: {indices}")
+                        if indices.get('employee_id'):
+                            target_sheet = sheet
+                            header_row = found_row
+                            col_indices = indices
+                            print(f"[DEBUG] VALID HEADER FOUND in {name} at row {found_row}")
+                            break
+                    else:
+                        print(f"[DEBUG] No header found in {name}")
+
+            if not target_sheet:
+                print("[DEBUG] CRITICAL: No suitable sheet found after scanning all.")
+                self.errors.append("No se encontró ninguna hoja con columna '社員番号' (Employee ID)")
                 return employees, stats
 
-            sheet = wb[sheet_name]
+            print(f"[DEBUG] Processing sheet '{target_sheet.title}' from row {header_row + 1} to {target_sheet.max_row}")
 
-            # Detect columns from header row
-            col_indices = self._detect_columns(sheet)
-            if not col_indices.get('employee_id'):
-                self.errors.append("Columna obligatoria 'employee_id' no encontrada")
-                return employees, stats
-
-            # Iterate through data rows (skip header which is row 1)
-            for row_num in range(2, sheet.max_row + 1):
+            # Iterate through data rows (start after header_row)
+            for row_num in range(header_row + 1, target_sheet.max_row + 1):
                 stats['total_rows'] += 1
+                
+                # Debug first few rows
+                if row_num < header_row + 5:
+                     print(f"[DEBUG] Processing row {row_num}...")
 
                 try:
                     # Get values from row
                     row_data = {}
                     for field, col_idx in col_indices.items():
                         if col_idx:
-                            cell_value = sheet.cell(row=row_num, column=col_idx).value
+                            cell_value = target_sheet.cell(row=row_num, column=col_idx).value
                             row_data[field] = cell_value
+                    
+                    if row_num < header_row + 5:
+                        print(f"[DEBUG] Row {row_num} raw data: {row_data}")
 
                     # Check if employee_id exists (required field)
                     emp_id = str(row_data.get('employee_id', '')).strip()
                     if not emp_id or emp_id == 'None':
+                        if row_num < header_row + 5:
+                            print(f"[DEBUG] Row {row_num} skipped: No Employee ID")
                         stats['rows_skipped'] += 1
                         continue
 
@@ -123,9 +162,11 @@ class DBGenzaiXParser:
 
                     employees.append(emp)
                     stats['employees_found'] += 1
+                    print(f"[DEBUG] Added employee: {emp_id}")
 
                 except Exception as e:
                     stats['errors'] += 1
+                    print(f"[DEBUG] Error in row {row_num}: {e}")
                     self.errors.append(f"Fila {row_num}: {str(e)}")
 
             wb.close()
@@ -144,13 +185,42 @@ class DBGenzaiXParser:
                 return name
         return None
 
-    def _detect_columns(self, sheet) -> Dict[str, Optional[int]]:
-        """Detect column indices from header row"""
+    def _find_header_row(self, sheet) -> Tuple[Optional[int], Dict[str, Optional[int]]]:
+        """
+        Scan first 15 rows to find a valid header row.
+        STRICT VALIDATION: Row must contain 'employee_id' AND at least one other field 
+        (name, status, dispatch_company, etc.) to be considered a header.
+        This prevents false positives on rows that just have "No" or "ID".
+        """
+        for row in range(1, min(20, sheet.max_row + 1)):
+            col_indices = self._detect_columns_in_row(sheet, row)
+            
+            # Check for employee_id
+            has_id = col_indices.get('employee_id')
+            
+            # Check for at least one other critical field
+            has_other_field = any([
+                col_indices.get('name'),
+                col_indices.get('status'),
+                col_indices.get('billing_rate'),
+                col_indices.get('dispatch_company'),
+                col_indices.get('hourly_rate')
+            ])
+            
+            if has_id and has_other_field:
+                return row, col_indices
+                
+        # Last resort: if we only found ID but nothing else, maybe return it?
+        # But safest is to return None to avoid garbage data.
+        return None, {}
+
+    def _detect_columns_in_row(self, sheet, row_num: int) -> Dict[str, Optional[int]]:
+        """Detect column indices from a specific row"""
         col_indices: Dict[str, Optional[int]] = {field: None for field in self.COLUMN_MAPPINGS}
 
-        # Read header row (row 1)
+        # Scan columns
         for col_idx in range(1, sheet.max_column + 1):
-            header = sheet.cell(row=1, column=col_idx).value
+            header = sheet.cell(row=row_num, column=col_idx).value
             if not header:
                 continue
 
@@ -158,6 +228,10 @@ class DBGenzaiXParser:
 
             # Check each field mapping
             for field, aliases in self.COLUMN_MAPPINGS.items():
+                # Skip if already found
+                if col_indices[field]:
+                    continue
+                    
                 for alias in aliases:
                     if header_lower == alias.lower():
                         col_indices[field] = col_idx
@@ -188,6 +262,9 @@ class DBGenzaiXParser:
         if value is None or value == '' or str(value).lower() == 'none':
             return 0.0
         try:
+            # Handle Japanese currency format
+            if isinstance(value, str):
+                value = value.replace('¥', '').replace(',', '').strip()
             return float(value)
         except (ValueError, TypeError):
             return 0.0

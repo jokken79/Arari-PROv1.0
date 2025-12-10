@@ -2,7 +2,7 @@
  * API client for 粗利 PRO backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8765'
 
 interface ApiResponse<T> {
   data?: T

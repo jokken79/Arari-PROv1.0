@@ -203,7 +203,85 @@ async def sync_employees(db: sqlite3.Connection = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============== File Upload ==============
+# ============== Import Employees Endpoint ==============
+
+@app.post("/api/import-employees")
+async def import_employees(
+    file: UploadFile = File(...),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """
+    Dedicated endpoint for importing employees from Excel (DBGenzaiX format).
+    Used by EmployeeUploader.tsx
+    """
+    allowed_extensions = ['.xlsx', '.xlsm', '.xls']
+    file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+
+    try:
+        content = await file.read()
+        
+        # Save temp file for parser
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+            
+        try:
+            parser = DBGenzaiXParser()
+            employees, stats = parser.parse_employees(tmp_path)
+            print(f"[INFO] /api/import-employees: Parsed {len(employees)} employees. Stats: {stats}")
+            
+            service = PayrollService(db)
+            added_count = 0
+            updated_count = 0
+            
+            for emp in employees:
+                emp_data = EmployeeCreate(
+                    employee_id=emp.employee_id,
+                    name=emp.name,
+                    name_kana=emp.name_kana,
+                    dispatch_company=emp.dispatch_company if emp.dispatch_company else "Unknown",
+                    department=emp.department,
+                    hourly_rate=emp.hourly_rate,
+                    billing_rate=emp.billing_rate,
+                    status=emp.status,
+                    hire_date=emp.hire_date
+                )
+                
+                existing = service.get_employee(emp.employee_id)
+                if existing:
+                    service.update_employee(emp.employee_id, emp_data)
+                    updated_count += 1
+                else:
+                    service.create_employee(emp_data)
+                    added_count += 1
+            
+            return {
+                "status": "success",
+                "message": f"Successfully imported {len(employees)} employees",
+                "employees_added": added_count,
+                "employees_updated": updated_count,
+                "employees_skipped": stats['rows_skipped'],
+                "total_employees": len(employees),
+                "errors": parser.errors
+            }
+            
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+                
+    except Exception as e:
+        print(f"[ERROR] Import failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/upload")
 async def upload_payroll_file(
@@ -236,14 +314,82 @@ async def upload_payroll_file(
             )
 
         # Detect file type and use appropriate parser
-        # Use specialized SalaryStatementParser for .xlsm salary statement files
-        template_stats = None
-        if file_ext == '.xlsm' and ('給与明細' in file.filename or '給料明細' in file.filename):
+        
+        # Detect file type and use appropriate parser
+        
+        # ---------------------------------------------------------
+        # CASE A: Payroll File (給与明細)
+        # ---------------------------------------------------------
+        if file_ext in ['.xlsm', '.xlsx'] and ('給与' in file.filename or '給料' in file.filename or '明細' in file.filename):
+            print(f"[INFO] Detected Payroll File: {file.filename}")
+            # Use specialized SalaryStatementParser
+            template_stats = None
             parser = SalaryStatementParser(use_intelligent_mode=True)
             records = parser.parse(content)
             template_stats = parser.get_parsing_stats()
+            
+        # ---------------------------------------------------------
+        # CASE B: Employee Master File (社員台帳)
+        # ---------------------------------------------------------
+        elif file_ext in ['.xlsx', '.xlsm', '.xls'] and ('社員' in file.filename or 'Employee' in file.filename or '台帳' in file.filename):
+            print(f"[INFO] Detected Employee Master File: {file.filename}")
+            
+            # Save temp file for parser
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+                
+            try:
+                parser = DBGenzaiXParser()
+                employees, stats = parser.parse_employees(tmp_path)
+                
+                print(f"[INFO] Parsed {len(employees)} employees. Stats: {stats}")
+                
+                service = PayrollService(db)
+                imported_count = 0
+                
+                # Upsert employees
+                for emp in employees:
+                    # Convert to EmployeeCreate schema
+                    emp_data = EmployeeCreate(
+                        employee_id=emp.employee_id,
+                        name=emp.name,
+                        name_kana=emp.name_kana,
+                        dispatch_company=emp.dispatch_company if emp.dispatch_company else "Unknown",
+                        department=emp.department,
+                        hourly_rate=emp.hourly_rate,
+                        billing_rate=emp.billing_rate,
+                        status=emp.status,
+                        hire_date=emp.hire_date
+                    )
+                    
+                    # Try update first (if exists), then create
+                    existing = service.get_employee(emp.employee_id)
+                    if existing:
+                        service.update_employee(emp.employee_id, emp_data)
+                    else:
+                        service.create_employee(emp_data)
+                    
+                    imported_count += 1
+                    
+                return {
+                    "success": True,
+                    "filename": file.filename,
+                    "total_records": stats['total_rows'],
+                    "saved_records": imported_count,
+                    "message": f"Successfully imported {imported_count} employees."
+                }
+                
+            finally:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+
+        # ---------------------------------------------------------
+        # CASE C: Generic/Legacy Fallback
+        # ---------------------------------------------------------
         else:
             # Use existing ExcelParser for simple CSV/XLSX files
+            print(f"[INFO] Detected Generic/Legacy File: {file.filename}")
             parser = ExcelParser()
             records = parser.parse(content, file_ext)
 

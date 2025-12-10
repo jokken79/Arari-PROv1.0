@@ -35,7 +35,7 @@ export function EmployeeTable({ employees, onView, onEdit, onDelete }: EmployeeT
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState<'haken' | 'ukeoi' | 'all'>('haken')
-  const [showActiveOnly, setShowActiveOnly] = useState(false)
+  const [showActiveOnly, setShowActiveOnly] = useState(true)
   const [selectedCompany, setSelectedCompany] = useState<string>('all')
 
   const filteredAndSortedEmployees = useMemo(() => {

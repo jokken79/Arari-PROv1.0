@@ -229,17 +229,24 @@ class SalaryStatementParser:
 
         records = []
 
-        # Process all sheets except the summary sheet (集計)
+        print(f"[DEBUG] Starting SalaryStatementParser. Sheets: {wb.sheetnames}")
+        
+        # Process all sheets except the summary sheet (集計) and Contract (請負)
         for sheet_name in wb.sheetnames:
-            if sheet_name in ['集計', 'Summary', '目次', 'Index']:
-                continue  # Skip summary/index sheets
+            if sheet_name in ['集計', 'Summary', '目次', 'Index', '請負']:
+                print(f"[DEBUG] Skipping sheet: {sheet_name}")
+                continue  # Skip summary/index/contract sheets
 
             try:
+                print(f"[DEBUG] Processing sheet: {sheet_name}")
                 ws = wb[sheet_name]
                 sheet_records = self._parse_sheet(ws, sheet_name)
+                print(f"[DEBUG] Sheet '{sheet_name}' yielded {len(sheet_records)} records")
                 records.extend(sheet_records)
             except Exception as e:
                 print(f"[WARNING] Error parsing sheet '{sheet_name}': {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         print(f"[OK] Parsed {len(records)} employee records from Excel")

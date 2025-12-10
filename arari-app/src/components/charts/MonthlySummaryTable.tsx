@@ -19,9 +19,22 @@ interface MonthlySummaryTableProps {
 }
 
 export function MonthlySummaryTable({ data }: MonthlySummaryTableProps) {
+  // Sort data descending by date (YYYY年M月 -> YYYYMM)
+  // This fixes the issue where "2025年10月" appears after "2025年1月" in string sort
+  const sortedData = [...data].sort((a, b) => {
+    const getNumericValue = (period: string) => {
+      const match = period.match(/(\d{4})年(\d{1,2})月/);
+      if (!match) return 0;
+      const year = parseInt(match[1]);
+      const month = parseInt(match[2]);
+      return year * 100 + month;
+    };
+    return getNumericValue(b.period) - getNumericValue(a.period);
+  });
+
   // Calculate month-over-month changes
-  const dataWithChanges = data.map((item, index) => {
-    const prevItem = data[index + 1] // Previous month (older)
+  const dataWithChanges = sortedData.map((item, index) => {
+    const prevItem = sortedData[index + 1] // Previous month (older)
     return {
       ...item,
       revenueChange: prevItem ? ((item.revenue - prevItem.revenue) / prevItem.revenue) * 100 : null,
