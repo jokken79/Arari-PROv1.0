@@ -61,6 +61,11 @@ export function EmployeeTable({
         return false
       }
 
+      // Filter out invalid rates (0 or less)
+      if (emp.hourlyRate <= 0 || emp.billingRate <= 0) {
+        return false
+      }
+
       // Apply company filter (only for haken employees)
       if (employeeTypeFilter === 'haken' && selectedCompany !== 'all') {
         if (emp.dispatchCompany !== selectedCompany) {

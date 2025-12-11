@@ -125,15 +125,31 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
                                                 </div>
 
                                                 <div className="flex items-center gap-6">
-                                                    {(record.paidLeaveAmount || 0) > 0 && (
-                                                        <div className="text-right hidden xl:block">
-                                                            <p className="text-xs text-muted-foreground">有給</p>
-                                                            <p className="font-mono">
-                                                                <span className="text-sm mr-2">{Number(record.paidLeaveDays)}日</span>
-                                                                {formatYen(record.paidLeaveAmount)}
-                                                            </p>
-                                                        </div>
-                                                    )}
+                                                    {(record.paidLeaveAmount || 0) > 0 && (() => {
+                                                        // Calculate paid leave days if missing or for better accuracy
+                                                        const dailyWorkHours = (record.workDays && record.workDays > 0 && record.workHours)
+                                                            ? record.workHours / record.workDays
+                                                            : 8
+
+                                                        const hourlyRate = employee?.hourlyRate || 0
+                                                        const leaveHours = hourlyRate > 0
+                                                            ? (record.paidLeaveAmount || 0) / hourlyRate
+                                                            : record.paidLeaveHours || 0
+
+                                                        const rawDays = dailyWorkHours > 0 ? leaveHours / dailyWorkHours : 0
+                                                        // Round to nearest 0.5
+                                                        const roundedDays = Math.round(rawDays * 2) / 2
+
+                                                        return (
+                                                            <div className="text-right hidden xl:block">
+                                                                <p className="text-xs text-muted-foreground">有給</p>
+                                                                <p className="font-mono">
+                                                                    <span className="text-sm mr-2">{roundedDays.toFixed(1)}日</span>
+                                                                    {formatYen(record.paidLeaveAmount)}
+                                                                </p>
+                                                            </div>
+                                                        )
+                                                    })()}
                                                     <div className="text-right hidden lg:block">
                                                         <p className="text-xs text-muted-foreground">請求金額</p>
                                                         <p className="font-mono">{formatYen(record.billingAmount)}</p>

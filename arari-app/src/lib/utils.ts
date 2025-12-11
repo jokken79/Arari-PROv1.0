@@ -75,15 +75,17 @@ export function sortPeriodsDescending(periods: string[]): string[] {
 
 // Get color class based on profit margin
 export function getProfitColor(margin: number): string {
-  if (margin >= 30) return 'text-emerald-500'
-  if (margin >= 20) return 'text-amber-500'
+  if (margin >= 10) return 'text-emerald-500'
+  if (margin >= 7) return 'text-green-500'
+  if (margin >= 3) return 'text-amber-500'
   return 'text-red-500'
 }
 
 // Get background color class based on profit margin
 export function getProfitBgColor(margin: number): string {
-  if (margin >= 30) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-  if (margin >= 20) return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+  if (margin >= 10) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+  if (margin >= 7) return 'bg-green-500/10 text-green-500 border-green-500/20'
+  if (margin >= 3) return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
   return 'bg-red-500/10 text-red-500 border-red-500/20'
 }
 

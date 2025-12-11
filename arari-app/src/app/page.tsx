@@ -98,7 +98,20 @@ export default function DashboardPage() {
         margin: r.profitMargin,
         revenue: r.billingAmount,
         cost: r.totalCompanyCost,
+        status: employee?.status,
+        hourlyRate: employee?.hourlyRate || 0,
+        billingRate: employee?.billingRate || 0,
       }
+    }).filter(r => {
+      // Filter out:
+      // 1. Non-active employees (resigned, etc.)
+      if (r.status !== 'active') return false
+      // 2. Invalid hourly rate (0)
+      if (r.hourlyRate <= 0) return false
+      // 3. Invalid billing rate (0)
+      if (r.billingRate <= 0) return false
+
+      return true
     })
 
     const sortedByProfit = [...recordsWithNames].sort((a, b) => b.profit - a.profit)

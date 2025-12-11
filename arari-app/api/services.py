@@ -511,10 +511,10 @@ class PayrollService:
         cursor = self.db.cursor()
 
         ranges = [
-            ("<5%", -999999999, 5),
-            ("5-10%", 5, 10),
-            ("10-15%", 10, 15),
-            (">15%", 15, 999999999),
+            ("<3%", -999999999, 3),
+            ("3-7%", 3, 7),
+            ("7-10%", 7, 10),
+            (">10%", 10, 999999999),
         ]
 
         cursor.execute("SELECT COUNT(*) FROM payroll_records WHERE period = ?", (period,))

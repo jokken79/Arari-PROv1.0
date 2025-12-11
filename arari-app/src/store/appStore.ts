@@ -93,10 +93,10 @@ function generateDashboardStats(employees: Employee[], payrollRecords: PayrollRe
 
   // Calculate profit distribution
   const marginRanges = [
-    { range: '<5%', min: -999, max: 5 },
-    { range: '5-10%', min: 5, max: 10 },
-    { range: '10-15%', min: 10, max: 15 },
-    { range: '>15%', min: 15, max: 999 },
+    { range: '<3%', min: -999, max: 3 },
+    { range: '3-7%', min: 3, max: 7 },
+    { range: '7-10%', min: 7, max: 10 },
+    { range: '>10%', min: 10, max: 999 },
   ]
 
   const profitDistribution = marginRanges.map(range => {

@@ -226,9 +226,12 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
 
                                         // Calculate paid leave days
                                         // Formula: paid_leave_hours ÷ daily_work_hours = paid_leave_days
-                                        const calculatedPaidLeaveDays = dailyWorkHours > 0
+                                        const rawPaidLeaveDays = dailyWorkHours > 0
                                             ? calculatedPaidLeaveHours / dailyWorkHours
                                             : record.paidLeaveDays || 0
+
+                                        // Round to nearest 0.5 as requested
+                                        const calculatedPaidLeaveDays = Math.round(rawPaidLeaveDays * 2) / 2
 
                                         return (
                                             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
@@ -319,7 +322,8 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                     ? record.workHours / record.workDays : 8
                                                 const leaveHrs = employee.hourlyRate > 0
                                                     ? (record.paidLeaveAmount || 0) / employee.hourlyRate : 0
-                                                const leaveDays = dailyHrs > 0 ? leaveHrs / dailyHrs : 0
+                                                const rawLeaveDays = dailyHrs > 0 ? leaveHrs / dailyHrs : 0
+                                                const leaveDays = Math.round(rawLeaveDays * 2) / 2
                                                 return (
                                                     <DetailRow
                                                         label="有給支給"
@@ -748,7 +752,8 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                     ? record.workHours / record.workDays : 8
                                                 const leaveHrs = employee.hourlyRate > 0
                                                     ? (record.paidLeaveAmount || 0) / employee.hourlyRate : 0
-                                                const leaveDays = dailyHrs > 0 ? leaveHrs / dailyHrs : 0
+                                                const rawLeaveDays = dailyHrs > 0 ? leaveHrs / dailyHrs : 0
+                                                const leaveDays = Math.round(rawLeaveDays * 2) / 2
                                                 return (
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-xs text-green-600 dark:text-green-300 ml-3">└ 有給 {leaveDays.toFixed(1)}日 (総支給に含む)</span>
