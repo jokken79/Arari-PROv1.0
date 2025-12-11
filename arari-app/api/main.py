@@ -5,11 +5,14 @@ FastAPI + SQLite backend for profit management system
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from starlette.background import BackgroundTask
 from contextlib import asynccontextmanager
 import uvicorn
 import tempfile
 import os
+from datetime import datetime
+
 
 from database import init_db, get_db
 from models import Employee, PayrollRecord, EmployeeCreate, PayrollRecordCreate
@@ -317,7 +320,10 @@ async def upload_payroll_file(
                 detail=f"File too large. Maximum size: 50MB. Your file: {len(content) / 1024 / 1024:.2f}MB"
             )
 
-        # Detect file type and use appropriate parser
+        # Prepare Employee Name Map for Parser (Resolving missing IDs)
+        service = PayrollService(db)
+        all_employees_list = service.get_employees()
+        employee_name_map = {emp['name']: emp['employee_id'] for emp in all_employees_list}
         
         # Detect file type and use appropriate parser
         
@@ -328,9 +334,9 @@ async def upload_payroll_file(
             print(f"[INFO] Detected Payroll File: {file.filename}")
             print(f"[DEBUG] File size: {len(content)} bytes")
             print(f"[DEBUG] File extension: {file_ext}")
-            # Use specialized SalaryStatementParser
+            # Use specialized SalaryStatementParser with Name Map
             template_stats = None
-            parser = SalaryStatementParser(use_intelligent_mode=True)
+            parser = SalaryStatementParser(use_intelligent_mode=True, employee_name_map=employee_name_map)
             
             # Run CPU-bound parsing in thread pool to avoid blocking async loop
             from fastapi.concurrency import run_in_threadpool
@@ -409,14 +415,14 @@ async def upload_payroll_file(
 
         # Save to database with transaction support
         # All records are saved in a single transaction - if any fails, all rollback
-        service = PayrollService(db)
+        # service = PayrollService(db) # Already initialized above
         saved_count = 0
         skipped = []  # Employees not found in database
         errors = []   # Other errors
 
         # Optimize N+1 queries: Load all employees once and create lookup map
-        all_employees = service.get_employees()
-        employee_map = {emp['employee_id']: emp for emp in all_employees}
+        # all_employees = service.get_employees() # Already fetched
+        employee_map = {emp['employee_id']: emp for emp in all_employees_list}
 
         # Start explicit transaction
         cursor = db.cursor()
@@ -604,7 +610,112 @@ async def sync_from_folder(
     })
 
 
-# ============== EMPLOYEE IMPORT ==============
+# ============== WAGE LEDGER EXPORT ==============
+
+@app.post("/api/export/wage-ledger")
+async def export_wage_ledger(
+    payload: dict,
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """
+    Export Wage Ledger (賃金台帳) to Excel.
+    Payload:
+    - template_name: "format_b" | "format_c"
+    - year: 2025
+    - target: "single" | "all_in_company"
+    - employee_id: (if single)
+    - company_name: (if all_in_company)
+    """
+    
+    template_name = payload.get("template_name", "format_b")
+    year = int(payload.get("year", datetime.now().year))
+    target = payload.get("target", "single")
+    
+    service = PayrollService(db)
+    
+    # Initialize Export Service
+    # Templates are in ./templates relative to API
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    template_dir = os.path.join(base_dir, "templates")
+    
+    # Check if template dir exists
+    if not os.path.exists(template_dir):
+        # Create it if missing so user knows where to put files
+        os.makedirs(template_dir, exist_ok=True)
+        # But we can't proceed without file
+        
+    from export_service import WageLedgerExportService
+    export_service = WageLedgerExportService(template_dir)
+
+    try:
+        # Case 1: Batch Export (ZIP)
+        if target == "all_in_company":
+            company = payload.get("company_name")
+            if not company:
+                raise HTTPException(status_code=400, detail="Company name required for batch export")
+            
+            # Get all employees in company
+            employees = service.get_employees(company=company)
+            if not employees:
+                raise HTTPException(status_code=404, detail=f"No employees found for {company}")
+            
+            export_requests = []
+            for emp in employees:
+                # Get payrolls for this employee for the whole year
+                # We fetch all and filter in python for simplicity or could Add year filter to query
+                records = service.get_payroll_records(employee_id=emp['employee_id'])
+                # Filter by year
+                year_records = [r for r in records if str(year) in r['period']]
+                
+                if year_records: # Only export if data exists
+                     export_requests.append({
+                         "employee": emp,
+                         "records": year_records,
+                         "template": template_name
+                     })
+            
+            if not export_requests:
+                 raise HTTPException(status_code=404, detail=f"No payroll data found for {company} in {year}")
+
+            # Generate ZIP
+            zip_path = export_service.create_batch_zip(export_requests, year)
+            
+            return FileResponse(
+                path=zip_path,
+                filename=f"賃金台帳_{company}_{year}.zip",
+                media_type='application/zip',
+                background=BackgroundTask(lambda: os.unlink(zip_path))
+            )
+
+        # Case 2: Single Export (Excel)
+        else:
+            emp_id = payload.get("employee_id")
+            if not emp_id:
+                raise HTTPException(status_code=400, detail="Employee ID required")
+                
+            employee = service.get_employee(emp_id)
+            if not employee:
+                raise HTTPException(status_code=404, detail="Employee not found")
+                
+            records = service.get_payroll_records(employee_id=emp_id)
+            year_records = [r for r in records if str(year) in r['period']]
+            
+            excel_path = export_service.generate_ledger(employee, year_records, template_name, year)
+            
+            return FileResponse(
+                path=excel_path,
+                filename=f"賃金台帳_{employee['name']}_{year}.xlsx",
+                media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                background=BackgroundTask(lambda: os.unlink(excel_path))
+            )
+            
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Export Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
 
 @app.post("/api/import-employees")
 async def import_employees(
@@ -918,3 +1029,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+# Force reload

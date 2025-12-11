@@ -31,6 +31,7 @@ import { RecentPayrolls } from '@/components/dashboard/RecentPayrolls'
 import { useAppStore } from '@/store/appStore'
 import { formatYen, formatPercent, formatNumber } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { NeonButton } from '@/components/ui/NeonButton'
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -273,11 +274,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
-      {/* Ambient Background Glows */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[100px]" />
-        <div className="absolute top-[20%] right-[-10%] w-[30%] h-[50%] bg-indigo-500/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]" />
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none bg-zinc-50 dark:bg-zinc-950 transition-colors duration-500">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-blue/10 dark:bg-neon-blue/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute top-[20%] right-[-10%] w-[30%] h-[50%] bg-neon-purple/10 dark:bg-neon-purple/20 rounded-full blur-[120px] animate-pulse delay-1000" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-indigo-600/10 dark:bg-indigo-600/20 rounded-full blur-[120px]" />
       </div>
 
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
@@ -305,18 +305,15 @@ export default function DashboardPage() {
                 )}
               </p>
             </div>
-            <button
+            <NeonButton
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
-                "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]",
-                isRefreshing && "opacity-50 cursor-not-allowed"
-              )}
+              glowColor="blue"
+              className="flex items-center gap-2"
             >
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
               データ更新
-            </button>
+            </NeonButton>
           </motion.div>
 
           {!hasData ? (

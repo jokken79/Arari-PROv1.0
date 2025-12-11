@@ -80,94 +80,89 @@ class DBGenzaiXParser:
             # Load workbook
             wb = openpyxl.load_workbook(file_path, data_only=True)
             
-            target_sheet = None
-            header_row = None
-            col_indices = {}
+            target_sheets = []
+            
+            # Strategy: Look for specific sheets
+            sheet_names_to_scan = ['DBGenzaiX', 'DBUkeoiX']
+            
+            for sheet_name in sheet_names_to_scan:
+                actual_name = self._find_sheet(wb, sheet_name)
+                if actual_name:
+                    sheet = wb[actual_name]
+                    found_row, indices = self._find_header_row(sheet)
+                    if found_row and indices.get('employee_id'):
+                        target_sheets.append((sheet, found_row, indices))
+                        print(f"[DEBUG] Found valid sheet: {actual_name}")
 
-            # Strategy 1: Look for DBGenzaiX sheet specifically
-            sheet_name = self._find_sheet(wb, 'DBGenzaiX')
-            if sheet_name:
-                sheet = wb[sheet_name]
-                found_row, indices = self._find_header_row(sheet)
-                if found_row and indices.get('employee_id'):
-                    target_sheet = sheet
-                    header_row = found_row
-                    col_indices = indices
-
-            # Strategy 2: If no valid DBGenzaiX, search ALL sheets
-            if not target_sheet:
-                print(f"[DEBUG] DBGenzaiX not found. Scanning {len(wb.sheetnames)} sheets: {wb.sheetnames}")
+            # If no specific sheets found, fallback to scanning ALL sheets
+            if not target_sheets:
+                print(f"[DEBUG] Standard sheets not found. Scanning all {len(wb.sheetnames)} sheets...")
                 for name in wb.sheetnames:
                     sheet = wb[name]
-                    print(f"[DEBUG] Checking sheet: {name}")
                     found_row, indices = self._find_header_row(sheet)
-                    if found_row:
-                        print(f"[DEBUG] Found potential header in {name} at row {found_row}. Indices: {indices}")
-                        if indices.get('employee_id'):
-                            target_sheet = sheet
-                            header_row = found_row
-                            col_indices = indices
-                            print(f"[DEBUG] VALID HEADER FOUND in {name} at row {found_row}")
-                            break
-                    else:
-                        print(f"[DEBUG] No header found in {name}")
-
-            if not target_sheet:
+                    if found_row and indices.get('employee_id'):
+                         target_sheets.append((sheet, found_row, indices))
+                         # Continue scanning to find others? Or stop at first? 
+                         # Let's scan all to be safe if they split data.
+            
+            if not target_sheets:
                 print("[DEBUG] CRITICAL: No suitable sheet found after scanning all.")
                 self.errors.append("No se encontró ninguna hoja con columna '社員番号' (Employee ID)")
                 return employees, stats
 
-            print(f"[DEBUG] Processing sheet '{target_sheet.title}' from row {header_row + 1} to {target_sheet.max_row}")
-
-            # Iterate through data rows (start after header_row)
-            for row_num in range(header_row + 1, target_sheet.max_row + 1):
-                stats['total_rows'] += 1
+            # Iterate through all found sheets
+            for sheet, header_row, col_indices in target_sheets:
+                print(f"[DEBUG] Processing sheet '{sheet.title}' from row {header_row + 1} to {sheet.max_row}")
+    
+                # Iterate through data rows (start after header_row)
+                for row_num in range(header_row + 1, sheet.max_row + 1):
+                    stats['total_rows'] += 1
                 
-                # Debug first few rows
-                if row_num < header_row + 5:
-                     print(f"[DEBUG] Processing row {row_num}...")
-
-                try:
-                    # Get values from row
-                    row_data = {}
-                    for field, col_idx in col_indices.items():
-                        if col_idx:
-                            cell_value = target_sheet.cell(row=row_num, column=col_idx).value
-                            row_data[field] = cell_value
-                    
+                    # Debug first few rows
                     if row_num < header_row + 5:
-                        print(f"[DEBUG] Row {row_num} raw data: {row_data}")
+                         print(f"[DEBUG] Processing row {row_num}...")
 
-                    # Check if employee_id exists (required field)
-                    emp_id = str(row_data.get('employee_id', '')).strip()
-                    if not emp_id or emp_id == 'None':
+                    try:
+                        # Get values from row
+                        row_data = {}
+                        for field, col_idx in col_indices.items():
+                            if col_idx:
+                                cell_value = sheet.cell(row=row_num, column=col_idx).value
+                                row_data[field] = cell_value
+                        
                         if row_num < header_row + 5:
-                            print(f"[DEBUG] Row {row_num} skipped: No Employee ID")
-                        stats['rows_skipped'] += 1
-                        continue
+                            print(f"[DEBUG] Row {row_num} raw data: {row_data}")
 
-                    # Build employee record
-                    emp = EmployeeRecord(
-                        employee_id=emp_id,
-                        name=str(row_data.get('name', '')).strip() or f"Employee {emp_id}",
-                        name_kana=self._clean_value(row_data.get('name_kana')),
-                        hourly_rate=self._to_float(row_data.get('hourly_rate')),
-                        billing_rate=self._to_float(row_data.get('billing_rate')),
-                        dispatch_company=self._clean_value(row_data.get('dispatch_company')),
-                        status=self._map_status(row_data.get('status')),
-                        hire_date=self._clean_value(row_data.get('hire_date')),
-                        department=self._clean_value(row_data.get('department')),
-                        employee_type=self._detect_employee_type(row_data.get('billing_rate')),
-                    )
+                        # Check if employee_id exists (required field)
+                        emp_id = str(row_data.get('employee_id', '')).strip()
+                        if not emp_id or emp_id == 'None':
+                            if row_num < header_row + 5:
+                                print(f"[DEBUG] Row {row_num} skipped: No Employee ID")
+                            stats['rows_skipped'] += 1
+                            continue
 
-                    employees.append(emp)
-                    stats['employees_found'] += 1
-                    print(f"[DEBUG] Added employee: {emp_id}")
+                        # Build employee record
+                        emp = EmployeeRecord(
+                            employee_id=emp_id,
+                            name=str(row_data.get('name', '')).strip() or f"Employee {emp_id}",
+                            name_kana=self._clean_value(row_data.get('name_kana')),
+                            hourly_rate=self._to_float(row_data.get('hourly_rate')),
+                            billing_rate=self._to_float(row_data.get('billing_rate')),
+                            dispatch_company=self._clean_value(row_data.get('dispatch_company')),
+                            status=self._map_status(row_data.get('status')),
+                            hire_date=self._clean_value(row_data.get('hire_date')),
+                            department=self._clean_value(row_data.get('department')),
+                            employee_type=self._detect_employee_type(row_data.get('billing_rate'), sheet.title),
+                        )
 
-                except Exception as e:
-                    stats['errors'] += 1
-                    print(f"[DEBUG] Error in row {row_num}: {e}")
-                    self.errors.append(f"Fila {row_num}: {str(e)}")
+                        employees.append(emp)
+                        stats['employees_found'] += 1
+                        print(f"[DEBUG] Added employee: {emp_id}")
+
+                    except Exception as e:
+                        stats['errors'] += 1
+                        print(f"[DEBUG] Error in row {row_num}: {e}")
+                        self.errors.append(f"Fila {row_num}: {str(e)}")
 
             wb.close()
 
@@ -252,8 +247,12 @@ class DBGenzaiXParser:
         # Default: if not recognized, assume active
         return 'active'
 
-    def _detect_employee_type(self, billing_rate) -> str:
-        """Determine employee type based on billing_rate"""
+    def _detect_employee_type(self, billing_rate, sheet_name: str = "") -> str:
+        """Determine employee type based on billing_rate and sheet name"""
+        # Strict separation: DBUkeoiX -> ukeoi
+        if sheet_name and 'ukeoi' in sheet_name.lower():
+            return 'ukeoi'
+            
         rate = self._to_float(billing_rate)
         return 'haken' if rate > 0 else 'ukeoi'
 
