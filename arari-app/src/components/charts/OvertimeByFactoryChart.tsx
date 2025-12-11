@@ -1,6 +1,5 @@
-'use client'
-
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   BarChart,
   Bar,
@@ -12,7 +11,8 @@ import {
   Legend,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Clock, AlertTriangle, Moon, Calendar } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Clock, AlertTriangle, Moon, Calendar, Maximize2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface OvertimeFactoryData {
@@ -96,7 +96,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               <span className={cn(
                 "font-bold",
                 avgOvertimePerEmployee > 45 ? "text-red-500" :
-                avgOvertimePerEmployee > 30 ? "text-amber-500" : "text-emerald-500"
+                  avgOvertimePerEmployee > 30 ? "text-amber-500" : "text-emerald-500"
               )}>
                 {avgOvertimePerEmployee.toFixed(1)}h
               </span>
@@ -138,6 +138,8 @@ const CustomLegend = ({ payload }: any) => {
 }
 
 export function OvertimeByFactoryChart({ data }: OvertimeByFactoryChartProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
   // Sort by total overtime for better visualization
   const sortedData = [...data].sort((a, b) => b.totalOvertime - a.totalOvertime)
 
@@ -151,163 +153,210 @@ export function OvertimeByFactoryChart({ data }: OvertimeByFactoryChartProps) {
   // Find factory with most overtime
   const topOvertimeFactory = sortedData[0]
 
+  const ChartContent = ({ height = "100%" }: { height?: string | number }) => (
+    <div style={{ height }} className="w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={sortedData}
+          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+          barGap={0}
+          barCategoryGap="15%"
+        >
+          <defs>
+            <linearGradient id="overtimeGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#d97706" />
+            </linearGradient>
+            <linearGradient id="over60hGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ef4444" />
+              <stop offset="100%" stopColor="#dc2626" />
+            </linearGradient>
+            <linearGradient id="nightGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8b5cf6" />
+              <stop offset="100%" stopColor="#7c3aed" />
+            </linearGradient>
+            <linearGradient id="holidayGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ec4899" />
+              <stop offset="100%" stopColor="#db2777" />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            className="stroke-muted/20"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="companyName"
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            angle={-45}
+            textAnchor="end"
+            height={60}
+          />
+          <YAxis
+            tickFormatter={(value) => `${value}h`}
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.1)' }} />
+          <Legend content={<CustomLegend />} />
+          <Bar
+            dataKey="overtimeHours"
+            name="残業 (≤60H)"
+            stackId="overtime"
+            fill="url(#overtimeGradient)"
+            radius={[0, 0, 0, 0]}
+            animationDuration={1000}
+          />
+          <Bar
+            dataKey="overtimeOver60h"
+            name="60H過残業"
+            stackId="overtime"
+            fill="url(#over60hGradient)"
+            radius={[0, 0, 0, 0]}
+            animationDuration={1000}
+            animationBegin={200}
+          />
+          <Bar
+            dataKey="nightHours"
+            name="深夜時間"
+            stackId="overtime"
+            fill="url(#nightGradient)"
+            radius={[0, 0, 0, 0]}
+            animationDuration={1000}
+            animationBegin={400}
+          />
+          <Bar
+            dataKey="holidayHours"
+            name="休日時間"
+            stackId="overtime"
+            fill="url(#holidayGradient)"
+            radius={[4, 4, 0, 0]}
+            animationDuration={1000}
+            animationBegin={600}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6, duration: 0.5 }}
-    >
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-amber-500" />
-                派遣先別 残業分析
-              </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                各派遣先の残業・深夜・休日時間を比較
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3 text-right">
-              <div className="bg-amber-500/10 rounded-lg px-3 py-1.5">
-                <p className="text-xs text-muted-foreground">残業合計</p>
-                <p className="text-sm font-bold text-amber-500">
-                  {totalOvertime.toFixed(1)}h
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6, duration: 0.5 }}
+      >
+        <Card className="overflow-hidden relative group">
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-amber-500" />
+                  派遣先別 残業分析
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  各派遣先の残業・深夜・休日時間を比較
                 </p>
               </div>
-              {totalOver60h > 0 && (
-                <div className="bg-red-500/10 rounded-lg px-3 py-1.5">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    60H超過
-                  </p>
-                  <p className="text-sm font-bold text-red-500">
-                    {totalOver60h.toFixed(1)}h
+              <div className="flex flex-wrap gap-3 text-right">
+                <div className="bg-amber-500/10 rounded-lg px-3 py-1.5 hidden sm:block">
+                  <p className="text-xs text-muted-foreground">残業合計</p>
+                  <p className="text-sm font-bold text-amber-500">
+                    {totalOvertime.toFixed(1)}h
                   </p>
                 </div>
-              )}
-              <div className="bg-purple-500/10 rounded-lg px-3 py-1.5">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Moon className="h-3 w-3" />
-                  深夜
-                </p>
-                <p className="text-sm font-bold text-purple-500">
-                  {totalNight.toFixed(1)}h
-                </p>
-              </div>
-              <div className="bg-pink-500/10 rounded-lg px-3 py-1.5">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  休日
-                </p>
-                <p className="text-sm font-bold text-pink-500">
-                  {totalHoliday.toFixed(1)}h
-                </p>
+                {totalOver60h > 0 && (
+                  <div className="bg-red-500/10 rounded-lg px-3 py-1.5 hidden sm:block">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      60H超過
+                    </p>
+                    <p className="text-sm font-bold text-red-500">
+                      {totalOver60h.toFixed(1)}h
+                    </p>
+                  </div>
+                )}
+                <div className="bg-purple-500/10 rounded-lg px-3 py-1.5 hidden sm:block">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Moon className="h-3 w-3" />
+                    深夜
+                  </p>
+                  <p className="text-sm font-bold text-purple-500">
+                    {totalNight.toFixed(1)}h
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsExpanded(true)}
+                  className="ml-auto sm:ml-2 text-slate-400 hover:text-white"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
-          </div>
 
-          {/* Top overtime factory highlight */}
-          {topOvertimeFactory && topOvertimeFactory.totalOvertime > 0 && (
-            <div className="mt-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-              <p className="text-xs text-amber-600 font-medium">
-                最多残業: <span className="font-bold">{topOvertimeFactory.companyName}</span>
-                {' '}— 合計 {topOvertimeFactory.totalOvertime.toFixed(1)}h
-                ({topOvertimeFactory.employeeCount}名, 平均 {(topOvertimeFactory.totalOvertime / topOvertimeFactory.employeeCount).toFixed(1)}h/人)
-              </p>
+            {/* Top overtime factory highlight */}
+            {topOvertimeFactory && topOvertimeFactory.totalOvertime > 0 && (
+              <div className="mt-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                <p className="text-xs text-amber-600 font-medium">
+                  最多残業: <span className="font-bold">{topOvertimeFactory.companyName}</span>
+                  {' '}— 合計 {topOvertimeFactory.totalOvertime.toFixed(1)}h
+                  ({topOvertimeFactory.employeeCount}名, 平均 {(topOvertimeFactory.totalOvertime / topOvertimeFactory.employeeCount).toFixed(1)}h/人)
+                </p>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="h-[350px]">
+              <ChartContent />
             </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          <div className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={sortedData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                barGap={0}
-                barCategoryGap="15%"
-              >
-                <defs>
-                  <linearGradient id="overtimeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#d97706" />
-                  </linearGradient>
-                  <linearGradient id="over60hGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ef4444" />
-                    <stop offset="100%" stopColor="#dc2626" />
-                  </linearGradient>
-                  <linearGradient id="nightGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#7c3aed" />
-                  </linearGradient>
-                  <linearGradient id="holidayGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ec4899" />
-                    <stop offset="100%" stopColor="#db2777" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-muted/20"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="companyName"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                />
-                <YAxis
-                  tickFormatter={(value) => `${value}h`}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.1)' }} />
-                <Legend content={<CustomLegend />} />
-                <Bar
-                  dataKey="overtimeHours"
-                  name="残業 (≤60H)"
-                  stackId="overtime"
-                  fill="url(#overtimeGradient)"
-                  radius={[0, 0, 0, 0]}
-                  animationDuration={1000}
-                />
-                <Bar
-                  dataKey="overtimeOver60h"
-                  name="60H過残業"
-                  stackId="overtime"
-                  fill="url(#over60hGradient)"
-                  radius={[0, 0, 0, 0]}
-                  animationDuration={1000}
-                  animationBegin={200}
-                />
-                <Bar
-                  dataKey="nightHours"
-                  name="深夜時間"
-                  stackId="overtime"
-                  fill="url(#nightGradient)"
-                  radius={[0, 0, 0, 0]}
-                  animationDuration={1000}
-                  animationBegin={400}
-                />
-                <Bar
-                  dataKey="holidayHours"
-                  name="休日時間"
-                  stackId="overtime"
-                  fill="url(#holidayGradient)"
-                  radius={[4, 4, 0, 0]}
-                  animationDuration={1000}
-                  animationBegin={600}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Expanded View */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            onClick={() => setIsExpanded(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="w-full max-w-7xl h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-6 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-4">
+                  <Clock className="h-6 w-6 text-amber-500" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">派遣先別 残業分析 (詳細)</h2>
+                    <div className="flex gap-4 mt-1">
+                      <span className="text-sm text-slate-400">残業合計: <span className="text-amber-500 font-bold">{totalOvertime.toFixed(1)}h</span></span>
+                      {totalOver60h > 0 && <span className="text-sm text-slate-400">60H超過: <span className="text-red-500 font-bold">{totalOver60h.toFixed(1)}h</span></span>}
+                    </div>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setIsExpanded(false)} className="rounded-full hover:bg-white/10 text-slate-400 hover:text-white">
+                  <X className="h-6 w-6" />
+                </Button>
+              </div>
+              <div className="flex-1 p-6 min-h-0 bg-gradient-to-br from-[#0a0a0a] to-[#111]">
+                <ChartContent height="100%" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

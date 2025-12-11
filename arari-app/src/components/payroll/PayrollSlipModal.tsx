@@ -79,33 +79,33 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ duration: 0.2 }}
-                    className="w-full max-w-7xl my-4 overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-900 shadow-2xl flex flex-col max-h-[95vh]"
+                    className="w-full max-w-7xl my-4 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0a]/90 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[95vh]"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shrink-0">
+                    <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white/5 border-b border-white/10 shrink-0 backdrop-blur-xl">
                         <div className="flex items-center gap-2 sm:gap-4">
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500"
+                                className="p-2 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
                             >
                                 <ArrowLeft className="h-5 w-5" />
                             </button>
-                            <span className="text-slate-400 dark:text-slate-500 hidden sm:inline">戻る</span>
+                            <span className="text-slate-400 hidden sm:inline">戻る</span>
                         </div>
 
                         {/* Period Badge + Name */}
                         <div className="flex items-center gap-3 sm:gap-6">
-                            <span className="px-3 sm:px-4 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold text-sm">
+                            <span className="px-3 sm:px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold text-sm shadow-[0_0_10px_rgba(6,182,212,0.2)]">
                                 {record.period}
                             </span>
                             <div className="flex items-center gap-2 sm:gap-3">
-                                <span className="text-lg sm:text-2xl font-bold text-slate-800 dark:text-white">
+                                <span className="text-lg sm:text-2xl font-bold text-white tracking-tight">
                                     {employee.name}
                                 </span>
                                 <span className="text-xs sm:text-sm text-slate-500 font-mono">
@@ -118,20 +118,20 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                         <div className="flex items-center gap-2 sm:gap-6">
                             {/* Revenue */}
                             <div className="hidden md:block text-right">
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Billed</p>
-                                <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{formatYen(record.billingAmount)}</p>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total Billed</p>
+                                <p className="text-lg font-bold text-indigo-400/90">{formatYen(record.billingAmount)}</p>
                             </div>
 
                             {/* Cost */}
                             <div className="hidden md:block text-right">
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total Cost</p>
-                                <p className="text-lg font-bold text-slate-600 dark:text-slate-400">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</p>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total Cost</p>
+                                <p className="text-lg font-bold text-slate-400">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</p>
                             </div>
 
                             {/* Profit - Highlighted */}
-                            <div className={`flex flex-col items-end px-3 py-1 rounded-lg ${marginColor.light} border ${marginColor.border}/30`}>
+                            <div className={`flex flex-col items-end px-4 py-2 rounded-xl backdrop-blur-md border ${marginColor.border}/30 bg-gradient-to-br from-${marginColor.bg}/10 to-${marginColor.bg}/5`}>
                                 <div className="flex items-baseline gap-2">
-                                    <span className={`text-2xl font-bold ${marginColor.text}`}>
+                                    <span className={`text-2xl font-bold ${marginColor.text} drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]`}>
                                         {formatYen(record.grossProfit)}
                                     </span>
                                     <span className={`text-sm font-bold ${marginColor.text}`}>
@@ -143,7 +143,7 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
 
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400 ml-2"
+                                className="p-2 rounded-full hover:bg-white/10 transition-colors text-slate-400 hover:text-white ml-2"
                             >
                                 <X className="h-5 w-5" />
                             </button>
@@ -151,72 +151,72 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                     </div>
 
                     {/* Company Name Bar */}
-                    <div className="px-4 sm:px-6 py-2 bg-slate-100 dark:bg-slate-800/50 flex items-center justify-between text-slate-600 dark:text-slate-400 shrink-0">
+                    <div className="px-4 sm:px-6 py-2 bg-white/5 border-b border-white/10 flex items-center justify-between text-slate-400 shrink-0">
                         <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4" />
-                            <span className="text-sm font-medium">{employee.dispatchCompany}</span>
+                            <Building2 className="h-4 w-4 text-cyan-500" />
+                            <span className="text-sm font-medium text-slate-200">{employee.dispatchCompany}</span>
                         </div>
                         <div className="flex items-center gap-4 text-xs">
-                            <span className="px-2 py-0.5 bg-white dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">
-                                時給: <strong className="text-slate-800 dark:text-slate-200">{formatYen(employee.hourlyRate)}</strong>
+                            <span className="px-2 py-0.5 bg-white/5 rounded border border-white/10">
+                                時給: <strong className="text-white">{formatYen(employee.hourlyRate)}</strong>
                             </span>
-                            <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 rounded border border-indigo-200 dark:border-indigo-800">
-                                単価: <strong className="text-indigo-600 dark:text-indigo-400">{formatYen(employee.billingRate)}</strong>
+                            <span className="px-2 py-0.5 bg-indigo-500/10 rounded border border-indigo-500/30">
+                                単価: <strong className="text-indigo-400">{formatYen(employee.billingRate)}</strong>
                             </span>
                         </div>
                     </div>
 
-                    {/* Main Content - 3 Columns */}
-                    <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+                    {/* MainContent - 3 Columns */}
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gradient-to-br from-[#0a0a0a] to-[#111]">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
                             {/* ========== Column 1: 給与支給明細 ========== */}
-                            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
-                                    <h3 className="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                            <div className="glass-card rounded-xl overflow-hidden hover:bg-white/[0.02] transition-colors">
+                                <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20">
+                                    <h3 className="font-bold text-blue-400 flex items-center gap-2">
                                         <CreditCard className="h-5 w-5" />
                                         給与支給明細
                                     </h3>
-                                    <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-0.5">スタッフへの支払額</p>
+                                    <p className="text-xs text-blue-400/60 mt-0.5">スタッフへの支払額</p>
                                 </div>
 
                                 <div className="p-4 space-y-4">
                                     {/* 勤怠実績 Section */}
-                                    <div className="p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
+                                    <div className="p-3 bg-black/40 rounded-lg border border-white/5">
                                         <div className="flex items-center gap-2 mb-3">
                                             <Clock className="h-4 w-4 text-slate-500" />
-                                            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">勤怠実績</span>
+                                            <span className="text-xs font-bold text-slate-400">勤怠実績</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2 text-center">
-                                            <div className="p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-600">
+                                            <div className="p-2 bg-white/5 rounded border border-white/10">
                                                 <p className="text-[10px] text-slate-500">出勤日数</p>
-                                                <p className="font-bold text-slate-800 dark:text-white">{record.workDays || 0}<span className="text-xs font-normal">日</span></p>
+                                                <p className="font-bold text-white">{record.workDays || 0}<span className="text-xs font-normal text-slate-500">日</span></p>
                                             </div>
-                                            <div className="p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-600">
+                                            <div className="p-2 bg-white/5 rounded border border-white/10">
                                                 <p className="text-[10px] text-slate-500">総労働時間</p>
-                                                <p className="font-bold text-slate-800 dark:text-white">{formatHours(totalWorkHours)}<span className="text-xs font-normal">h</span></p>
+                                                <p className="font-bold text-white">{formatHours(totalWorkHours)}<span className="text-xs font-normal text-slate-500">h</span></p>
                                             </div>
-                                            <div className="p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-600">
+                                            <div className="p-2 bg-white/5 rounded border border-white/10">
                                                 <p className="text-[10px] text-slate-500">基本時間</p>
-                                                <p className="font-bold text-slate-800 dark:text-white">{formatHours(record.workHours)}<span className="text-xs font-normal">h</span></p>
+                                                <p className="font-bold text-white">{formatHours(record.workHours)}<span className="text-xs font-normal text-slate-500">h</span></p>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-4 gap-2 mt-2 text-center">
-                                            <div className="p-1.5 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800">
-                                                <p className="text-[9px] text-amber-600 dark:text-amber-400">残業</p>
-                                                <p className="font-bold text-amber-700 dark:text-amber-300 text-sm">{formatHours(record.overtimeHours)}</p>
+                                            <div className="p-1.5 bg-amber-500/10 rounded border border-amber-500/20">
+                                                <p className="text-[9px] text-amber-500">残業</p>
+                                                <p className="font-bold text-amber-500 text-sm">{formatHours(record.overtimeHours)}</p>
                                             </div>
-                                            <div className="p-1.5 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-800">
-                                                <p className="text-[9px] text-orange-600 dark:text-orange-400">60H超</p>
-                                                <p className="font-bold text-orange-700 dark:text-orange-300 text-sm">{formatHours(record.overtimeOver60h)}</p>
+                                            <div className="p-1.5 bg-orange-500/10 rounded border border-orange-500/20">
+                                                <p className="text-[9px] text-orange-500">60H超</p>
+                                                <p className="font-bold text-orange-500 text-sm">{formatHours(record.overtimeOver60h)}</p>
                                             </div>
-                                            <div className="p-1.5 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800">
-                                                <p className="text-[9px] text-purple-600 dark:text-purple-400">深夜</p>
-                                                <p className="font-bold text-purple-700 dark:text-purple-300 text-sm">{formatHours(record.nightHours)}</p>
+                                            <div className="p-1.5 bg-purple-500/10 rounded border border-purple-500/20">
+                                                <p className="text-[9px] text-purple-400">深夜</p>
+                                                <p className="font-bold text-purple-400 text-sm">{formatHours(record.nightHours)}</p>
                                             </div>
-                                            <div className="p-1.5 bg-rose-50 dark:bg-rose-900/20 rounded border border-rose-200 dark:border-rose-800">
-                                                <p className="text-[9px] text-rose-600 dark:text-rose-400">休日</p>
-                                                <p className="font-bold text-rose-700 dark:text-rose-300 text-sm">{formatHours(record.holidayHours)}</p>
+                                            <div className="p-1.5 bg-rose-500/10 rounded border border-rose-500/20">
+                                                <p className="text-[9px] text-rose-400">休日</p>
+                                                <p className="font-bold text-rose-400 text-sm">{formatHours(record.holidayHours)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -245,37 +245,37 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                         const calculatedPaidLeaveDays = Math.round(rawPaidLeaveDays * 2) / 2
 
                                         return (
-                                            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                            <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2">
-                                                        <Gift className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                                        <span className="text-xs font-bold text-green-700 dark:text-green-400">有給休暇</span>
+                                                        <Gift className="h-4 w-4 text-emerald-400" />
+                                                        <span className="text-xs font-bold text-emerald-400">有給休暇</span>
                                                     </div>
-                                                    <span className="text-[10px] text-green-600/60 dark:text-green-400/60">
+                                                    <span className="text-[10px] text-emerald-400/60">
                                                         1日 = {dailyWorkHours.toFixed(1)}h
                                                     </span>
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-2 text-center">
                                                     <div>
-                                                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70">取得日数</p>
-                                                        <p className="font-bold text-green-700 dark:text-green-300">
+                                                        <p className="text-[10px] text-emerald-400/70">取得日数</p>
+                                                        <p className="font-bold text-emerald-400">
                                                             {calculatedPaidLeaveDays.toFixed(1)}<span className="text-xs font-normal">日</span>
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70">有給時間</p>
-                                                        <p className="font-bold text-green-700 dark:text-green-300">
+                                                        <p className="text-[10px] text-emerald-400/70">有給時間</p>
+                                                        <p className="font-bold text-emerald-400">
                                                             {calculatedPaidLeaveHours.toFixed(0)}<span className="text-xs font-normal">h</span>
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70">有給金額</p>
-                                                        <p className="font-bold text-green-700 dark:text-green-300 text-sm">{formatYen(record.paidLeaveAmount || 0)}</p>
+                                                        <p className="text-[10px] text-emerald-400/70">有給金額</p>
+                                                        <p className="font-bold text-emerald-400 text-sm">{formatYen(record.paidLeaveAmount || 0)}</p>
                                                     </div>
                                                 </div>
                                                 {/* Calculation breakdown */}
-                                                <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
-                                                    <p className="text-[9px] text-green-600/60 dark:text-green-400/50 text-center">
+                                                <div className="mt-2 pt-2 border-t border-emerald-500/30">
+                                                    <p className="text-[9px] text-emerald-400/50 text-center">
                                                         {formatYen(record.paidLeaveAmount || 0)} ÷ {formatYen(employee.hourlyRate)} = {calculatedPaidLeaveHours.toFixed(0)}h → {calculatedPaidLeaveHours.toFixed(0)}h ÷ {dailyWorkHours.toFixed(1)}h/日 = {calculatedPaidLeaveDays.toFixed(1)}日
                                                     </p>
                                                 </div>
@@ -287,7 +287,7 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                     <div>
                                         <div className="flex items-center gap-2 mb-2">
                                             <Sun className="h-4 w-4 text-blue-500" />
-                                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">支給の部</span>
+                                            <span className="text-xs font-bold text-blue-400">支給の部</span>
                                         </div>
                                         <div className="space-y-2">
                                             <DetailRow
@@ -366,27 +366,27 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                     subLabel="皆勤・深夜残業等"
                                                     value={record.otherAllowances}
                                                     badge="請求"
-                                                    badgeColor="bg-indigo-100 text-indigo-700"
+                                                    badgeColor="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
                                                 />
                                             )}
                                         </div>
                                     </div>
 
                                     {/* 総支給額 */}
-                                    <div className="pt-3 border-t-2 border-blue-200 dark:border-blue-800">
+                                    <div className="pt-3 border-t-2 border-dashed border-white/10">
                                         <div className="flex justify-between items-center">
-                                            <span className="font-bold text-blue-700 dark:text-blue-300">総支給額</span>
-                                            <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                                            <span className="font-bold text-blue-400">総支給額</span>
+                                            <span className="text-2xl font-bold text-blue-400 drop-shadow-md">
                                                 {formatYen(record.grossSalary)}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* 控除の部 */}
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-800/30">
+                                    <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Moon className="h-4 w-4 text-red-500" />
-                                            <span className="text-xs font-bold text-red-600 dark:text-red-400">控除の部 (本人負担)</span>
+                                            <span className="text-xs font-bold text-red-400">控除の部 (本人負担)</span>
                                         </div>
                                         <div className="space-y-1.5 text-sm">
                                             <DeductionRow label="健康保険" value={record.socialInsurance} />
@@ -402,21 +402,21 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                 <DeductionRow label="年末調整" value={record.yearEndAdjustment} />
                                             )}
                                             <DeductionRow label="その他控除" value={record.otherDeductions} />
-                                            <div className="pt-2 border-t border-red-200 dark:border-red-800 flex justify-between font-bold">
-                                                <span className="text-red-600 dark:text-red-400">控除合計</span>
-                                                <span className="text-red-600 dark:text-red-400">-{formatYen(totalDeductions)}</span>
+                                            <div className="pt-2 border-t border-red-500/30 flex justify-between font-bold">
+                                                <span className="text-red-400">控除合計</span>
+                                                <span className="text-red-400">-{formatYen(totalDeductions)}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* 差引支給額 */}
-                                    <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white">
+                                    <div className="p-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-xl text-white shadow-lg">
                                         <div className="flex justify-between items-center">
                                             <div>
-                                                <p className="text-xs text-blue-100">差引支給額（手取り）</p>
-                                                <p className="text-xs text-blue-200">Net Salary</p>
+                                                <p className="text-xs text-blue-100/80">差引支給額（手取り）</p>
+                                                <p className="text-xs text-blue-100/80">Net Salary</p>
                                             </div>
-                                            <span className="text-3xl font-bold">
+                                            <span className="text-3xl font-bold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                                                 {formatYen(record.netSalary)}
                                             </span>
                                         </div>
@@ -425,20 +425,20 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                             </div>
 
                             {/* ========== Column 2: 請求金額計算 ========== */}
-                            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                <div className="px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800">
-                                    <h3 className="font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
+                            <div className="glass-card rounded-xl overflow-hidden hover:bg-white/[0.02] transition-colors">
+                                <div className="px-4 py-3 bg-indigo-500/10 border-b border-indigo-500/20">
+                                    <h3 className="font-bold text-indigo-400 flex items-center gap-2">
                                         <Briefcase className="h-5 w-5" />
                                         請求金額計算
                                     </h3>
-                                    <p className="text-xs text-indigo-600/70 dark:text-indigo-400/70 mt-0.5">工場への請求額</p>
+                                    <p className="text-xs text-indigo-400/60 mt-0.5">工場への請求額</p>
                                 </div>
 
                                 <div className="p-4 space-y-4">
                                     {/* Billing Rate Highlight */}
-                                    <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl text-white text-center">
+                                    <div className="p-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-600 rounded-xl text-white text-center shadow-lg">
                                         <p className="text-xs text-indigo-100 mb-1">請求単価 (Billing Rate)</p>
-                                        <p className="text-3xl font-bold">
+                                        <p className="text-3xl font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
                                             {formatYen(employee.billingRate)}<span className="text-lg font-normal">/h</span>
                                         </p>
                                     </div>
@@ -447,7 +447,7 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Calculator className="h-4 w-4 text-indigo-500" />
-                                            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">請求内訳</span>
+                                            <span className="text-xs font-bold text-indigo-400">請求内訳</span>
                                         </div>
 
                                         <BillingRow
@@ -505,12 +505,12 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
 
                                         {/* Pass-through Allowances (New Feature) */}
                                         {(record.otherAllowances || 0) > 0 && (
-                                            <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700 last:border-0 bg-indigo-50/50 dark:bg-indigo-900/10 px-2 rounded">
+                                            <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 bg-indigo-500/10 px-2 rounded">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-indigo-700 dark:text-indigo-300 text-sm font-medium">その他手当 (請求対象)</span>
-                                                    <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">実費</span>
+                                                    <span className="text-indigo-300 text-sm font-medium">その他手当 (請求対象)</span>
+                                                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">実費</span>
                                                 </div>
-                                                <span className="font-mono font-medium text-indigo-700 dark:text-indigo-300">
+                                                <span className="font-mono font-medium text-indigo-300">
                                                     {formatYen(record.otherAllowances)}
                                                 </span>
                                             </div>
@@ -518,19 +518,19 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                     </div>
 
                                     {/* Billing Total */}
-                                    <div className="pt-4 border-t-2 border-indigo-200 dark:border-indigo-800">
+                                    <div className="pt-4 border-t-2 border-indigo-500/30">
                                         <div className="flex justify-between items-center">
-                                            <span className="font-bold text-indigo-700 dark:text-indigo-300">請求合計</span>
-                                            <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                            <span className="font-bold text-indigo-400">請求合計</span>
+                                            <span className="text-2xl font-bold text-indigo-400 drop-shadow-sm">
                                                 {formatYen(record.billingAmount)}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* Hours Summary Visual */}
-                                    <div className="p-3 bg-slate-50 dark:bg-slate-700/30 rounded-lg">
-                                        <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-3">時間構成比</p>
-                                        <div className="h-4 rounded-full overflow-hidden flex bg-slate-200 dark:bg-slate-600">
+                                    <div className="p-3 bg-black/40 rounded-lg border border-white/5">
+                                        <p className="text-xs font-bold text-slate-400 mb-3">時間構成比</p>
+                                        <div className="h-4 rounded-full overflow-hidden flex bg-white/10">
                                             {(record.workHours || 0) > 0 && (
                                                 <div
                                                     className="bg-blue-500 h-full"
@@ -561,30 +561,30 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                             )}
                                         </div>
                                         <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span>基本</span>
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span>残業</span>
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500"></span>60H超</span>
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500"></span>休日</span>
+                                            <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-blue-500"></span>基本</span>
+                                            <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-amber-500"></span>残業</span>
+                                            <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-orange-500"></span>60H超</span>
+                                            <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full bg-rose-500"></span>休日</span>
                                         </div>
                                     </div>
 
                                     {/* Rate Comparison */}
-                                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2">単価差額（1時間あたり）</p>
+                                    <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                        <p className="text-xs font-bold text-emerald-400 mb-2">単価差額（1時間あたり）</p>
                                         <div className="flex items-center justify-between">
                                             <div className="text-center">
                                                 <p className="text-[10px] text-slate-500">単価</p>
-                                                <p className="font-bold text-indigo-600">{formatYen(employee.billingRate)}</p>
+                                                <p className="font-bold text-indigo-400">{formatYen(employee.billingRate)}</p>
                                             </div>
-                                            <span className="text-slate-400">-</span>
+                                            <span className="text-slate-600">-</span>
                                             <div className="text-center">
                                                 <p className="text-[10px] text-slate-500">時給</p>
-                                                <p className="font-bold text-blue-600">{formatYen(employee.hourlyRate)}</p>
+                                                <p className="font-bold text-blue-400">{formatYen(employee.hourlyRate)}</p>
                                             </div>
-                                            <span className="text-slate-400">=</span>
+                                            <span className="text-slate-600">=</span>
                                             <div className="text-center">
                                                 <p className="text-[10px] text-slate-500">差額</p>
-                                                <p className="font-bold text-emerald-600">{formatYen(employee.billingRate - employee.hourlyRate)}</p>
+                                                <p className="font-bold text-emerald-400">{formatYen(employee.billingRate - employee.hourlyRate)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -592,90 +592,91 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                             </div>
 
                             {/* ========== Column 3: 粗利分析 ========== */}
-                            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800">
-                                    <h3 className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                            <div className="glass-card rounded-xl overflow-hidden hover:bg-white/[0.02] transition-colors">
+                                <div className="px-4 py-3 bg-emerald-500/10 border-b border-emerald-500/20">
+                                    <h3 className="font-bold text-emerald-400 flex items-center gap-2">
                                         <TrendingUp className="h-5 w-5" />
                                         粗利分析
                                     </h3>
-                                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-0.5">最終的な利益計算</p>
+                                    <p className="text-xs text-emerald-400/60 mt-0.5">最終的な利益計算</p>
                                 </div>
 
                                 <div className="p-4 space-y-4">
                                     {/* Formula Steps */}
                                     <div className="space-y-3">
                                         {/* Step 1: Revenue */}
-                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                        <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">1</span>
-                                                    <span className="font-medium text-blue-700 dark:text-blue-300">売上 (Revenue)</span>
+                                                    <span className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold shadow-[0_0_10px_rgba(59,130,246,0.5)]">1</span>
+                                                    <span className="font-medium text-blue-400">売上 (Revenue)</span>
                                                 </div>
-                                                <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                                <span className="text-xl font-bold text-blue-400 drop-shadow-sm">
                                                     {formatYen(record.billingAmount)}
                                                 </span>
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-center text-2xl text-slate-300 dark:text-slate-600">↓</div>
+                                        <div className="flex justify-center text-2xl text-slate-500">↓</div>
 
                                         {/* Step 2: Gross Salary */}
-                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                        <div className="p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold">2</span>
-                                                    <span className="font-medium text-orange-700 dark:text-orange-300">総支給額</span>
+                                                    <span className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold shadow-[0_0_10px_rgba(249,115,22,0.5)]">2</span>
+                                                    <span className="font-medium text-orange-400">総支給額</span>
                                                 </div>
-                                                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                                                <span className="text-xl font-bold text-orange-400 drop-shadow-sm">
                                                     -{formatYen(record.grossSalary)}
                                                 </span>
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-center text-2xl text-slate-300 dark:text-slate-600">+</div>
+                                        <div className="flex justify-center text-2xl text-slate-500">+</div>
 
                                         {/* Step 3: Company Benefits */}
-                                        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                        <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold">3</span>
-                                                    <span className="font-medium text-purple-700 dark:text-purple-300">法定福利費 (会社負担)</span>
+                                                    <span className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold shadow-[0_0_10px_rgba(168,85,247,0.5)]">3</span>
+                                                    <span className="font-medium text-purple-400">法定福利費 (会社負担)</span>
                                                 </div>
-                                                <span className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                                                <span className="text-xl font-bold text-purple-400 drop-shadow-sm">
                                                     -{formatYen(totalCompanyBenefits)}
                                                 </span>
                                             </div>
-                                            <div className="ml-8 space-y-1 text-xs">
-                                                <div className="flex justify-between text-purple-600/80 dark:text-purple-400/80">
-                                                    <span>健康保険 (会社分) <span className="text-[10px]">※本人と同額</span></span>
-                                                    <span className="font-mono">{formatYen(companyHealthIns)}</span>
+                                            <div className="ml-8 space-y-1 text-xs text-purple-300/80">
+                                                <div className="flex justify-between">
+                                                    <span>健康保険 (会社分) <span className="text-[10px] opacity-70">※本人と同額</span></span>
+                                                    <span className="font-mono text-purple-300">{formatYen(companyHealthIns)}</span>
                                                 </div>
                                                 {companyWelfarePension > 0 && (
-                                                    <div className="flex justify-between text-purple-600/80 dark:text-purple-400/80">
-                                                        <span>厚生年金 (会社分) <span className="text-[10px]">※本人と同額</span></span>
-                                                        <span className="font-mono">{formatYen(companyWelfarePension)}</span>
+                                                    <div className="flex justify-between">
+                                                        <span>厚生年金 (会社分) <span className="text-[10px] opacity-70">※本人と同額</span></span>
+                                                        <span className="font-mono text-purple-300">{formatYen(companyWelfarePension)}</span>
                                                     </div>
                                                 )}
-                                                <div className="flex justify-between text-purple-600/80 dark:text-purple-400/80">
+                                                <div className="flex justify-between">
                                                     <span>雇用保険 ({(empInsRate * 100).toFixed(2)}%)</span>
-                                                    <span className="font-mono">{formatYen(companyEmploymentIns)}</span>
+                                                    <span className="font-mono text-purple-300">{formatYen(companyEmploymentIns)}</span>
                                                 </div>
-                                                <div className="flex justify-between text-purple-600/80 dark:text-purple-400/80">
+                                                <div className="flex justify-between">
                                                     <span>労災保険 ({(workersCompRate * 100).toFixed(1)}%)</span>
-                                                    <span className="font-mono">{formatYen(companyWorkersComp)}</span>
+                                                    <span className="font-mono text-purple-300">{formatYen(companyWorkersComp)}</span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-center text-2xl text-slate-300 dark:text-slate-600">=</div>
+                                        <div className="flex justify-center text-2xl text-slate-500">=</div>
 
                                         {/* Final Result */}
-                                        <div className={`p-4 rounded-xl border-2 ${marginColor.border}/50 ${marginColor.light}`}>
-                                            <div className="text-center">
-                                                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                        <div className={`p-4 rounded-xl border ${marginColor.border}/50 backdrop-blur-md bg-gradient-to-br from-black/40 to-black/20 text-center relative overflow-hidden`}>
+                                            <div className={`absolute inset-0 opacity-10 ${marginColor.bg}`}></div>
+                                            <div className="relative z-10">
+                                                <p className="text-sm font-medium text-slate-400 mb-1">
                                                     粗利益 (1 - 2 - 3)
                                                 </p>
-                                                <p className={`text-4xl font-bold ${marginColor.text}`}>
+                                                <p className={`text-4xl font-bold ${marginColor.text} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
                                                     {formatYen(record.grossProfit)}
                                                 </p>
                                             </div>
@@ -683,59 +684,59 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                     </div>
 
                                     {/* Margin Rate with Target - IMPROVED VISIBILITY */}
-                                    <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600">
+                                    <div className="p-4 bg-white/5 rounded-xl border border-white/10">
                                         <div className="flex justify-between items-center mb-3">
-                                            <span className="text-sm font-bold text-slate-700 dark:text-white">マージン率</span>
-                                            <span className={`text-2xl font-bold ${marginColor.text}`}>
+                                            <span className="text-sm font-bold text-slate-200">マージン率</span>
+                                            <span className={`text-2xl font-bold ${marginColor.text} drop-shadow`}>
                                                 {marginRate.toFixed(1)}%
                                             </span>
                                         </div>
                                         {/* Progress to target */}
                                         <div className="space-y-1">
-                                            <div className="flex justify-between text-xs text-slate-600 dark:text-slate-300">
+                                            <div className="flex justify-between text-xs text-slate-500">
                                                 <span>0%</span>
-                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">目標: {settings.target_margin || 15}%</span>
+                                                <span className="text-emerald-400 font-bold">目標: {settings.target_margin || 15}%</span>
                                                 <span>{(settings.target_margin || 15) * 2}%</span>
                                             </div>
-                                            <div className="h-3 bg-slate-300 dark:bg-slate-600 rounded-full overflow-hidden relative">
+                                            <div className="h-3 bg-black/50 rounded-full overflow-hidden relative border border-white/5">
                                                 {/* Target line */}
-                                                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-emerald-500 z-10" />
+                                                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-emerald-500 z-10 shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
                                                 {/* Current value */}
                                                 <div
-                                                    className={`h-full ${marginColor.bg} transition-all duration-500`}
+                                                    className={`h-full ${marginColor.bg} transition-all duration-500 shadow-[0_0_10px_rgba(0,0,0,0.5)]`}
                                                     style={{ width: `${Math.min(marginRate / ((settings.target_margin || 15) * 2) * 100, 100)}%` }}
                                                 />
                                             </div>
                                         </div>
-                                        <p className="text-center text-xs mt-2 text-slate-600 dark:text-slate-300">
+                                        <p className="text-center text-xs mt-2 text-slate-400">
                                             {marginRate >= (settings.target_margin || 15)
-                                                ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">目標達成 ✓</span>
-                                                : <span className="text-amber-600 dark:text-amber-400 font-semibold">目標まで: {((settings.target_margin || 15) - marginRate).toFixed(1)}%</span>
+                                                ? <span className="text-emerald-400 font-semibold drop-shadow">目標達成 ✓</span>
+                                                : <span className="text-amber-400 font-semibold drop-shadow">目標まで: {((settings.target_margin || 15) - marginRate).toFixed(1)}%</span>
                                             }
                                         </p>
                                     </div>
 
                                     {/* Cost Breakdown Summary - IMPROVED VISIBILITY */}
-                                    <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600">
-                                        <p className="text-sm font-bold text-slate-700 dark:text-white mb-3 flex items-center gap-2">
+                                    <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                        <p className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
                                             <Calculator className="h-4 w-4 text-blue-500" />
                                             会社総コスト内訳
                                         </p>
                                         <div className="space-y-2">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-sm text-slate-600 dark:text-slate-300">総支給額</span>
-                                                <span className="font-mono text-sm font-semibold text-slate-800 dark:text-white">{formatYen(record.grossSalary)}</span>
+                                                <span className="text-sm text-slate-400">総支給額</span>
+                                                <span className="font-mono text-sm font-semibold text-slate-200">{formatYen(record.grossSalary)}</span>
                                             </div>
                                             {(record.transportAllowance || 0) > 0 && (
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-xs text-blue-600 dark:text-blue-300 ml-3">├ 通勤手当 (総支給に含む)</span>
-                                                    <span className="font-mono text-sm text-blue-600 dark:text-blue-300">{formatYen(record.transportAllowance)}</span>
+                                                    <span className="text-xs text-blue-400 ml-3">├ 通勤手当 (総支給に含む)</span>
+                                                    <span className="font-mono text-sm text-blue-400">{formatYen(record.transportAllowance)}</span>
                                                 </div>
                                             )}
                                             {(record.nonBillableAllowances || 0) > 0 && (
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-xs text-amber-600 dark:text-amber-300 ml-3">├ 非請求手当 (総支給に含む)</span>
-                                                    <span className="font-mono text-sm text-amber-600 dark:text-amber-300">{formatYen(record.nonBillableAllowances)}</span>
+                                                    <span className="text-xs text-amber-400 ml-3">├ 非請求手当 (総支給に含む)</span>
+                                                    <span className="font-mono text-sm text-amber-400">{formatYen(record.nonBillableAllowances)}</span>
                                                 </div>
                                             )}
                                             {(record.paidLeaveAmount || 0) > 0 && (() => {
@@ -747,26 +748,26 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                 const leaveDays = Math.round(rawLeaveDays * 2) / 2
                                                 return (
                                                     <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-green-600 dark:text-green-300 ml-3">└ 有給 {leaveDays.toFixed(1)}日 (総支給に含む)</span>
-                                                        <span className="font-mono text-sm text-green-600 dark:text-green-300">{formatYen(record.paidLeaveAmount)}</span>
+                                                        <span className="text-xs text-emerald-400 ml-3">└ 有給 {leaveDays.toFixed(1)}日 (総支給に含む)</span>
+                                                        <span className="font-mono text-sm text-emerald-400">{formatYen(record.paidLeaveAmount)}</span>
                                                     </div>
                                                 )
                                             })()}
                                             <div className="flex justify-between items-center">
-                                                <span className="text-sm text-slate-600 dark:text-slate-300">法定福利費</span>
-                                                <span className="font-mono text-sm font-semibold text-slate-800 dark:text-white">{formatYen(totalCompanyBenefits)}</span>
+                                                <span className="text-sm text-slate-400">法定福利費</span>
+                                                <span className="font-mono text-sm font-semibold text-slate-200">{formatYen(totalCompanyBenefits)}</span>
                                             </div>
-                                            <div className="pt-3 mt-2 border-t-2 border-slate-300 dark:border-slate-500 flex justify-between items-center">
-                                                <span className="text-sm font-bold text-slate-800 dark:text-white">会社総コスト</span>
-                                                <span className="font-mono text-lg font-bold text-slate-900 dark:text-white">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</span>
+                                            <div className="pt-3 mt-2 border-t-2 border-white/10 flex justify-between items-center">
+                                                <span className="text-sm font-bold text-slate-200">会社総コスト</span>
+                                                <span className="font-mono text-lg font-bold text-white">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Performance Badge */}
-                                    <div className={`p-3 rounded-lg text-center ${marginColor.light} border ${marginColor.border}/30`}>
-                                        <p className="text-xs mb-1">収益性評価</p>
-                                        <p className={`text-lg font-bold ${marginColor.text}`}>
+                                    <div className={`p-3 rounded-lg text-center backdrop-blur-md border ${marginColor.border}/30 bg-gradient-to-br from-${marginColor.bg}/10 to-${marginColor.bg}/5`}>
+                                        <p className="text-xs mb-1 text-white/70">収益性評価</p>
+                                        <p className={`text-lg font-bold ${marginColor.text} drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]`}>
                                             {marginRate >= 18 ? '優秀 Excellent' :
                                                 marginRate >= 15 ? '良好 Good' :
                                                     marginRate >= 12 ? '普通 Average' :
@@ -794,29 +795,29 @@ function DetailRow({ label, subLabel, value, highlight, badge, badgeColor }: {
     badgeColor?: string
 }) {
     const colors = {
-        amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
-        orange: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
-        purple: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
-        rose: 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800',
-        green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+        amber: 'bg-amber-500/10 border-amber-500/20',
+        orange: 'bg-orange-500/10 border-orange-500/20',
+        purple: 'bg-purple-500/10 border-purple-500/20',
+        rose: 'bg-rose-500/10 border-rose-500/20',
+        green: 'bg-emerald-500/10 border-emerald-500/20',
     }
 
     return (
-        <div className={`flex justify-between items-center p-2 rounded ${highlight ? colors[highlight] + ' border' : ''}`}>
+        <div className={`flex justify-between items-center p-2 rounded ${highlight ? colors[highlight] + ' border' : 'hover:bg-white/5 transition-colors'}`}>
             <div>
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                    <span className="text-sm text-slate-300">{label}</span>
                     {badge && (
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${badgeColor || 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${badgeColor || 'bg-slate-700/50 text-slate-400 border-slate-600/50'}`}>
                             {badge}
                         </span>
                     )}
                 </div>
                 {subLabel && (
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{subLabel}</p>
+                    <p className="text-[10px] text-slate-500">{subLabel}</p>
                 )}
             </div>
-            <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+            <span className="font-mono font-bold text-slate-200">
                 {formatYen(value || 0)}
             </span>
         </div>
@@ -825,9 +826,9 @@ function DetailRow({ label, subLabel, value, highlight, badge, badgeColor }: {
 
 function DeductionRow({ label, value }: { label: string; value?: number }) {
     return (
-        <div className="flex justify-between">
-            <span className="text-red-600/80 dark:text-red-400/80">{label}</span>
-            <span className="text-red-600 dark:text-red-400 font-mono">
+        <div className="flex justify-between items-center group">
+            <span className="text-red-400/70 group-hover:text-red-400 transition-colors">{label}</span>
+            <span className="text-red-400 font-mono">
                 -{formatYen(value || 0)}
             </span>
         </div>
@@ -851,24 +852,24 @@ function BillingRow({ label, hours, rate, multiplier, value, color, isExtra }: {
     }
 
     const colorClasses = {
-        amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
-        orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
-        purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
-        rose: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
+        amber: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+        orange: 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
+        purple: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+        rose: 'bg-rose-500/20 text-rose-400 border border-rose-500/30',
     }
 
     return (
-        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700 last:border-0">
+        <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors px-1 -mx-1 rounded">
             <div className="flex items-center gap-2">
-                <span className="text-slate-600 dark:text-slate-400">{label}</span>
-                <span className="text-xs text-slate-400">({formatHours(hours)}h)</span>
+                <span className="text-slate-300">{label}</span>
+                <span className="text-xs text-slate-500">({formatHours(hours)}h)</span>
                 {multiplier !== 1 && (
-                    <span className={`px-1.5 py-0.5 text-xs rounded ${color ? colorClasses[color] : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`px-1.5 py-0.5 text-xs rounded ${color ? colorClasses[color] : 'bg-white/10 text-slate-300 border border-white/10'}`}>
                         {isExtra ? '+' : '×'}{multiplier}
                     </span>
                 )}
             </div>
-            <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
+            <span className="font-mono font-medium text-slate-200">
                 {formatYen(value)}
             </span>
         </div>

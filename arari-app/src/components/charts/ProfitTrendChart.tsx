@@ -1,6 +1,5 @@
-'use client'
-
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   AreaChart,
   Area,
@@ -12,7 +11,9 @@ import {
   Legend,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { formatYen } from '@/lib/utils'
+import { Maximize2, X, TrendingUp } from 'lucide-react'
 
 interface ProfitTrendChartProps {
   data: {
@@ -45,96 +46,154 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const ChartContent = ({ height = "100%" }: { height?: string | number }) => (
+    <div style={{ height }} className="w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart
+          data={data}
+          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#10b981" stopOpacity={0.5} />
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            className="stroke-white/10"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="period"
+            className="text-xs"
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: '#94a3b8' }}
+          />
+          <YAxis
+            tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
+            className="text-xs"
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: '#94a3b8' }}
+          />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1 }}
+          />
+          <Legend
+            wrapperStyle={{ paddingTop: '20px' }}
+            iconType="circle"
+          />
+          <Area
+            type="monotone"
+            dataKey="revenue"
+            name="売上"
+            stroke="#06b6d4"
+            strokeWidth={2}
+            fillOpacity={1}
+            fill="url(#colorRevenue)"
+          />
+          <Area
+            type="monotone"
+            dataKey="cost"
+            name="コスト"
+            stroke="#94a3b8"
+            strokeWidth={2}
+            strokeDasharray="4 4"
+            fillOpacity={1}
+            fill="url(#colorCost)"
+          />
+          <Area
+            type="monotone"
+            dataKey="profit"
+            name="粗利"
+            stroke="#10b981"
+            strokeWidth={3}
+            fillOpacity={1}
+            fill="url(#colorProfit)"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3, duration: 0.5 }}
-    >
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            月別収益トレンド
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={data}
-                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+      >
+        <Card className="glass-card overflow-hidden relative group">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-slate-200">
+                <span className="h-2 w-2 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
+                月別収益トレンド
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsExpanded(true)}
+                className="rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
               >
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-muted/30"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="period"
-                  className="text-xs"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <YAxis
-                  tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
-                  className="text-xs"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  wrapperStyle={{ paddingTop: '20px' }}
-                  iconType="circle"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  name="売上"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="cost"
-                  name="コスト"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorCost)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="profit"
-                  name="粗利"
-                  stroke="#10b981"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorProfit)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[350px]">
+              <ChartContent />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Expanded View */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            onClick={() => setIsExpanded(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="w-full max-w-7xl h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden shadow-2xl flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-6 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-4">
+                  <TrendingUp className="h-6 w-6 text-cyan-500" />
+                  <h2 className="text-2xl font-bold text-white">月別収益トレンド (詳細)</h2>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setIsExpanded(false)} className="rounded-full hover:bg-white/10 text-slate-400 hover:text-white">
+                  <X className="h-6 w-6" />
+                </Button>
+              </div>
+              <div className="flex-1 p-6 min-h-0 bg-gradient-to-br from-[#0a0a0a] to-[#111]">
+                <ChartContent height="100%" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

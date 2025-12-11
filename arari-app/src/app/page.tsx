@@ -272,11 +272,18 @@ export default function DashboardPage() {
   const hasData = payrollRecords.length > 0
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Ambient Background Glows */}
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[100px]" />
+        <div className="absolute top-[20%] right-[-10%] w-[30%] h-[50%] bg-indigo-500/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]" />
+      </div>
+
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="md:pl-[280px] transition-all duration-300">
+      <main className="md:pl-[280px] transition-all duration-300 relative z-10">
         <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
           {/* Page Title */}
           <motion.div
@@ -285,14 +292,14 @@ export default function DashboardPage() {
             className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
           >
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 bg-clip-text text-transparent">
                 粗利ダッシュボード
               </h1>
-              <p className="text-muted-foreground mt-1 flex items-center gap-2">
+              <p className="text-slate-400 mt-1 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 {selectedPeriod || '期間を選択してください'}
                 {hasData && (
-                  <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.2)]">
                     リアルデータ
                   </span>
                 )}
@@ -302,8 +309,8 @@ export default function DashboardPage() {
               onClick={handleRefresh}
               disabled={isRefreshing}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20",
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
+                "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)]",
                 isRefreshing && "opacity-50 cursor-not-allowed"
               )}
             >

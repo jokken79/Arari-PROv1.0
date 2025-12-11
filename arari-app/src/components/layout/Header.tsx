@@ -33,7 +33,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-xl"
+        className="sticky top-0 z-50 w-full border-b border-white/5 glass"
       >
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           {/* Left side - Logo & Title */}
@@ -44,7 +44,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               className="md:hidden"
               onClick={onMenuClick}
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5 text-slate-400" />
             </Button>
 
             <motion.div
@@ -53,21 +53,21 @@ export function Header({ onMenuClick }: HeaderProps) {
               transition={{ type: 'spring', stiffness: 400 }}
             >
               <div className="relative">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-600 shadow-[0_0_15px_rgba(6,182,212,0.5)]">
                   <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <motion.div
-                  className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background"
+                  className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-[#0a0a0a] shadow-[0_0_10px_rgba(52,211,153,0.8)]"
                   animate={{ scale: [1, 1.2, 1] }}
                   transition={{ repeat: Infinity, duration: 2 }}
                 />
               </div>
 
               <div className="hidden sm:block">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">
                   粗利 PRO
                 </h1>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-500">
                   利益管理システム v2.0
                 </p>
               </div>
@@ -75,9 +75,9 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
 
           {/* Center - Date Display */}
-          <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/50">
-            <span className="text-sm text-muted-foreground">現在</span>
-            <span className="text-sm font-medium">
+          <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/5">
+            <span className="text-sm text-slate-400">現在</span>
+            <span className="text-sm font-medium text-slate-200">
               {new Date().toLocaleDateString('ja-JP', {
                 year: 'numeric',
                 month: 'long',
@@ -92,10 +92,10 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Notifications */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
+                <Button variant="ghost" size="icon" className="relative text-slate-400 hover:text-white hover:bg-white/10">
                   <Bell className="h-5 w-5" />
                   {notificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold">
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold shadow-lg shadow-red-500/50">
                       {notificationCount > 99 ? '99+' : notificationCount}
                     </span>
                   )}
@@ -109,7 +109,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Theme Toggle */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={toggleTheme}>
+                <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-slate-400 hover:text-white hover:bg-white/10">
                   <motion.div
                     initial={false}
                     animate={{ rotate: resolvedTheme === 'dark' ? 0 : 180 }}
@@ -131,7 +131,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Settings */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-white/10">
                   <Settings className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
@@ -139,13 +139,13 @@ export function Header({ onMenuClick }: HeaderProps) {
             </Tooltip>
 
             {/* User */}
-            <div className="hidden md:flex items-center gap-3 pl-3 ml-2 border-l">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
+            <div className="hidden md:flex items-center gap-3 pl-3 ml-2 border-l border-white/10">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-blue-500/20">
                 <User className="h-5 w-5 text-white" />
               </div>
               <div className="hidden lg:block">
-                <p className="text-sm font-medium">管理者</p>
-                <p className="text-xs text-muted-foreground">admin@arari.jp</p>
+                <p className="text-sm font-medium text-slate-200">管理者</p>
+                <p className="text-xs text-slate-500">admin@arari.jp</p>
               </div>
             </div>
           </div>

@@ -156,7 +156,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         animate={{ width: collapsed ? 80 : 280 }}
         transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
         className={cn(
-          'fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] border-r bg-background/80 backdrop-blur-xl',
+          'fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] border-r border-white/5 glass',
           'hidden md:flex flex-col',
         )}
       >
@@ -179,16 +179,16 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                       <Link
                         href={item.href}
                         className={cn(
-                          'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                          'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300',
                           isActive
-                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                            ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)]'
+                            : 'text-slate-400 hover:bg-white/5 hover:text-white',
                         )}
                       >
                         <Icon
                           className={cn(
-                            'h-5 w-5 shrink-0 transition-transform duration-200',
-                            !isActive && 'group-hover:scale-110',
+                            'h-5 w-5 shrink-0 transition-transform duration-300',
+                            !isActive && 'group-hover:scale-110 group-hover:text-cyan-400',
                           )}
                         />
                         <AnimatePresence mode="wait">
@@ -201,7 +201,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                             >
                               <span className="whitespace-nowrap">{item.name}</span>
                               {!isActive && (
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                <span className="text-xs text-slate-500 whitespace-nowrap group-hover:text-slate-400 transition-colors">
                                   {item.description}
                                 </span>
                               )}
@@ -211,7 +211,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                         {isActive && !collapsed && (
                           <motion.div
                             layoutId="activeIndicator"
-                            className="ml-auto h-2 w-2 rounded-full bg-white"
+                            className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
                           />
                         )}
                       </Link>
@@ -240,41 +240,42 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                   exit={{ opacity: 0, height: 0 }}
                   className="mt-4 overflow-hidden"
                 >
-                  <div className="rounded-xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-4 border border-emerald-500/20">
-                    <div className="flex items-center gap-2 mb-3">
+                  <div className="rounded-xl bg-gradient-to-br from-cyan-900/10 via-slate-900/40 to-black/40 p-4 border border-white/5 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div className="flex items-center gap-2 mb-3 relative">
                       {profitStats && profitStats.changePercent >= 0 ? (
-                        <TrendingUp className="h-4 w-4 text-emerald-500" />
+                        <TrendingUp className="h-4 w-4 text-emerald-400" />
                       ) : (
-                        <TrendingDown className="h-4 w-4 text-red-500" />
+                        <TrendingDown className="h-4 w-4 text-red-400" />
                       )}
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium text-slate-300">
                         {profitStats?.period ? `${profitStats.period}の粗利` : '今月の粗利'}
                       </span>
                     </div>
                     {isLoadingStats ? (
                       <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">読込中...</span>
+                        <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                        <span className="text-sm text-slate-500">読込中...</span>
                       </div>
                     ) : profitStats ? (
                       <>
                         <p className={cn(
-                          "text-2xl font-bold",
-                          profitStats.currentProfit >= 0 ? "text-emerald-500" : "text-red-500"
+                          "text-2xl font-bold tracking-tight",
+                          profitStats.currentProfit >= 0 ? "text-emerald-400" : "text-red-400"
                         )}>
                           ¥{profitStats.currentProfit.toLocaleString()}
                         </p>
                         {profitStats.previousProfit > 0 && (
                           <p className={cn(
                             "text-xs mt-1",
-                            profitStats.changePercent >= 0 ? "text-emerald-600" : "text-red-500"
+                            profitStats.changePercent >= 0 ? "text-emerald-500/80" : "text-red-500/80"
                           )}>
                             前月比 {profitStats.changePercent >= 0 ? '+' : ''}{profitStats.changePercent.toFixed(1)}%
                           </p>
                         )}
                       </>
                     ) : (
-                      <p className="text-sm text-muted-foreground">データなし</p>
+                      <p className="text-sm text-slate-500">データなし</p>
                     )}
                   </div>
                 </motion.div>
@@ -283,7 +284,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           </nav>
 
           {/* Bottom Navigation */}
-          <div className="border-t pt-4 mt-auto">
+          <div className="border-t border-white/5 pt-4 mt-auto">
             {bottomNavigation.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -296,8 +297,8 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                       className={cn(
                         'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                         isActive
-                          ? 'bg-accent text-accent-foreground'
-                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                          ? 'bg-white/10 text-white'
+                          : 'text-slate-400 hover:bg-white/5 hover:text-white',
                       )}
                     >
                       <Icon className="h-5 w-5 shrink-0" />
@@ -315,7 +316,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="w-full mt-2 justify-center"
+              className="w-full mt-2 justify-center text-slate-500 hover:text-white hover:bg-white/5"
               onClick={() => setCollapsed(!collapsed)}
             >
               {collapsed ? (
@@ -339,7 +340,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/50 md:hidden"
+              className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
               onClick={onClose}
             />
             <motion.aside
@@ -347,7 +348,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed left-0 top-16 z-50 h-[calc(100vh-4rem)] w-72 border-r bg-background p-4 md:hidden"
+              className="fixed left-0 top-16 z-50 h-[calc(100vh-4rem)] w-72 border-r border-white/10 bg-[#0a0a0a] p-4 md:hidden"
             >
               <nav className="flex flex-col gap-1">
                 {navigation.map((item) => {
@@ -362,8 +363,8 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                       className={cn(
                         'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
                         isActive
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:bg-accent',
+                          ? 'bg-cyan-500/10 text-cyan-400'
+                          : 'text-slate-400 hover:bg-white/5 hover:text-white',
                       )}
                     >
                       <Icon className="h-5 w-5" />

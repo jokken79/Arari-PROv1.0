@@ -79,8 +79,22 @@ export function RecentPayrolls({ payrolls, employees }: RecentPayrollsProps) {
                       {hasPaidLeave && (
                         <p className="text-xs text-amber-500 flex items-center gap-1 mt-0.5">
                           <Calendar className="h-3 w-3" />
-                          有給: {payroll.paidLeaveDays}日
-                          {paidLeaveAmount > 0 && ` (${formatYen(paidLeaveAmount)})`}
+                          {(() => {
+                            let days = payroll.paidLeaveDays
+                            // If days are 0 but amount exists, estimate days (Amount / Hourly / 8h)
+                            if (days === 0 && paidLeaveAmount > 0) {
+                              const hourlyRate = employee?.hourlyRate || 0
+                              if (hourlyRate > 0) {
+                                days = Math.round((paidLeaveAmount / hourlyRate / 8) * 2) / 2
+                              }
+                            }
+                            return (
+                              <>
+                                {days > 0 ? `有給: ${days}日` : '有給あり'}
+                                {paidLeaveAmount > 0 && ` (${formatYen(paidLeaveAmount)})`}
+                              </>
+                            )
+                          })()}
                         </p>
                       )}
                     </div>

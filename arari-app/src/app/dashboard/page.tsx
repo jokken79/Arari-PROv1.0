@@ -380,8 +380,8 @@ export default function DashboardPage() {
                             {/* Secondary Stats */}
                             <div className="grid gap-4 md:grid-cols-4 mb-8">
                                 <StatsCard
-                                    title="総従業員数"
-                                    value={`${dashboardStats.totalEmployees}名`}
+                                    title="在籍従業員数"
+                                    value={`${employees.filter(e => e.status === 'active').length}名`}
                                     icon={Users}
                                     delay={4}
                                 />
