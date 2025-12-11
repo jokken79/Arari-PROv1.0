@@ -240,7 +240,7 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsExpanded(true)}
-                  className="ml-2 text-slate-400 hover:text-white"
+                  className="ml-2 text-muted-foreground hover:text-foreground"
                 >
                   <Maximize2 className="h-4 w-4" />
                 </Button>
@@ -276,14 +276,14 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
                 <div className="flex items-center gap-4">
                   <Factory className="h-6 w-6 text-blue-500" />
                   <div>
-                    <h2 className="text-2xl font-bold text-white">派遣先別 売上 vs コスト (詳細)</h2>
+                    <h2 className="text-2xl font-bold text-foreground">派遣先別 売上 vs コスト (詳細)</h2>
                     <div className="flex gap-4 mt-1">
                       <span className="text-sm text-slate-400">総粗利: <span className="text-emerald-500 font-bold">{formatYen(totalProfit)}</span></span>
                       <span className="text-sm text-slate-400">平均マージン: <span className={cn("font-bold", avgMargin >= target ? "text-emerald-500" : "text-amber-500")}>{formatPercent(avgMargin)}</span></span>
                     </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setIsExpanded(false)} className="rounded-full hover:bg-white/10 text-slate-400 hover:text-white">
+                <Button variant="ghost" size="icon" onClick={() => setIsExpanded(false)} className="rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
                   <X className="h-6 w-6" />
                 </Button>
               </div>

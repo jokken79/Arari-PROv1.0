@@ -272,7 +272,7 @@ export default function DashboardPage() {
   const hasData = payrollRecords.length > 0
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-x-hidden">
       {/* Ambient Background Glows */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[100px]" />
@@ -283,7 +283,7 @@ export default function DashboardPage() {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="md:pl-[280px] transition-all duration-300 relative z-10">
+      <main className="md:pl-[280px] pt-16 transition-all duration-300 relative z-10">
         <div className="container py-6 px-4 md:px-6 max-w-7xl mx-auto">
           {/* Page Title */}
           <motion.div
@@ -387,8 +387,8 @@ export default function DashboardPage() {
               {/* Secondary Stats */}
               <div className="grid gap-4 md:grid-cols-4 mb-8">
                 <StatsCard
-                  title="総従業員数"
-                  value={`${dashboardStats.totalEmployees}名`}
+                  title="在職中"
+                  value={`${employees.filter(e => e.status === 'active').length}名`}
                   icon={Users}
                   delay={4}
                 />

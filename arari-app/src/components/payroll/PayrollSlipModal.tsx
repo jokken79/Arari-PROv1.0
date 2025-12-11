@@ -46,12 +46,27 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
     const totalWorkHours = (record.workHours || 0) + (record.overtimeHours || 0) + (record.overtimeOver60h || 0) + (record.holidayHours || 0)
 
     // Calculate total deductions (本人負担)
-    const totalDeductions = (record.socialInsurance || 0) +
+    // Known individual deductions
+    const knownDeductions = (record.socialInsurance || 0) +
         (record.welfarePension || 0) +
         (record.employmentInsurance || 0) +
         (record.incomeTax || 0) +
         (record.residentTax || 0) +
+        (record.rentDeduction || 0) +
+        (record.utilitiesDeduction || 0) +
+        (record.mealDeduction || 0) +
+        (record.advancePayment || 0) +
+        (record.yearEndAdjustment || 0) +
         (record.otherDeductions || 0)
+
+    // Calculate actual total from gross - net (this is the real total)
+    const actualTotalDeductions = (record.grossSalary || 0) - (record.netSalary || 0)
+
+    // Calculate missing/unaccounted deductions
+    const missingDeductions = Math.max(0, actualTotalDeductions - knownDeductions)
+
+    // Final total deductions (use actual if available, otherwise known)
+    const totalDeductions = record.netSalary ? actualTotalDeductions : knownDeductions
 
     // Calculate company costs (法定福利費)
     // 社会保険（会社負担）= 健康保険 + 厚生年金 (both equal to employee share - 労使折半)
@@ -79,36 +94,36 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md overflow-y-auto">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ duration: 0.2 }}
-                    className="w-full max-w-7xl my-4 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0a]/90 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[95vh]"
+                    className="w-full max-w-7xl my-4 overflow-hidden rounded-2xl border border-border bg-background/95 shadow-2xl flex flex-col max-h-[95vh]"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white/5 border-b border-white/10 shrink-0 backdrop-blur-xl">
+                    <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-muted/50 border-b border-border shrink-0 backdrop-blur-xl">
                         <div className="flex items-center gap-2 sm:gap-4">
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
+                                className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                             >
                                 <ArrowLeft className="h-5 w-5" />
                             </button>
-                            <span className="text-slate-400 hidden sm:inline">戻る</span>
+                            <span className="text-muted-foreground hidden sm:inline">戻る</span>
                         </div>
 
                         {/* Period Badge + Name */}
                         <div className="flex items-center gap-3 sm:gap-6">
-                            <span className="px-3 sm:px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold text-sm shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                            <span className="px-3 sm:px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold text-sm shadow-sm">
                                 {record.period}
                             </span>
                             <div className="flex items-center gap-2 sm:gap-3">
-                                <span className="text-lg sm:text-2xl font-bold text-white tracking-tight">
+                                <span className="text-lg sm:text-2xl font-bold text-foreground tracking-tight">
                                     {employee.name}
                                 </span>
-                                <span className="text-xs sm:text-sm text-slate-500 font-mono">
+                                <span className="text-xs sm:text-sm text-muted-foreground font-mono">
                                     ({employee.employeeId})
                                 </span>
                             </div>
@@ -118,14 +133,14 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                         <div className="flex items-center gap-2 sm:gap-6">
                             {/* Revenue */}
                             <div className="hidden md:block text-right">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total Billed</p>
-                                <p className="text-lg font-bold text-indigo-400/90">{formatYen(record.billingAmount)}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Billed</p>
+                                <p className="text-lg font-bold text-indigo-500 dark:text-indigo-400">{formatYen(record.billingAmount)}</p>
                             </div>
 
                             {/* Cost */}
                             <div className="hidden md:block text-right">
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total Cost</p>
-                                <p className="text-lg font-bold text-slate-400">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Cost</p>
+                                <p className="text-lg font-bold text-muted-foreground">{formatYen(record.totalCompanyCost || (record.grossSalary + totalCompanyBenefits))}</p>
                             </div>
 
                             {/* Profit - Highlighted */}
@@ -143,7 +158,7 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
 
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-full hover:bg-white/10 transition-colors text-slate-400 hover:text-white ml-2"
+                                className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground ml-2"
                             >
                                 <X className="h-5 w-5" />
                             </button>
@@ -151,17 +166,17 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                     </div>
 
                     {/* Company Name Bar */}
-                    <div className="px-4 sm:px-6 py-2 bg-white/5 border-b border-white/10 flex items-center justify-between text-slate-400 shrink-0">
+                    <div className="px-4 sm:px-6 py-2 bg-muted/30 border-b border-border flex items-center justify-between text-muted-foreground shrink-0">
                         <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-cyan-500" />
-                            <span className="text-sm font-medium text-slate-200">{employee.dispatchCompany}</span>
+                            <Building2 className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-foreground">{employee.dispatchCompany}</span>
                         </div>
                         <div className="flex items-center gap-4 text-xs">
-                            <span className="px-2 py-0.5 bg-white/5 rounded border border-white/10">
-                                時給: <strong className="text-white">{formatYen(employee.hourlyRate)}</strong>
+                            <span className="px-2 py-0.5 bg-muted rounded border border-border">
+                                時給: <strong className="text-foreground">{formatYen(employee.hourlyRate)}</strong>
                             </span>
                             <span className="px-2 py-0.5 bg-indigo-500/10 rounded border border-indigo-500/30">
-                                単価: <strong className="text-indigo-400">{formatYen(employee.billingRate)}</strong>
+                                単価: <strong className="text-indigo-500 dark:text-indigo-400">{formatYen(employee.billingRate)}</strong>
                             </span>
                         </div>
                     </div>
@@ -393,15 +408,27 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                             <DeductionRow label="厚生年金" value={record.welfarePension} />
                                             <DeductionRow label="雇用保険" value={record.employmentInsurance} />
                                             <DeductionRow label="所得税" value={record.incomeTax} />
-                                            <DeductionRow label="住民税" value={record.residentTax} />
-                                            <DeductionRow label="寮費・家賃" value={record.rentDeduction} />
-                                            <DeductionRow label="光熱費" value={record.utilitiesDeduction} />
-                                            <DeductionRow label="食事代・弁当" value={record.mealDeduction} />
-                                            <DeductionRow label="前借金返済" value={record.advancePayment} />
+                                            {(record.residentTax || 0) > 0 && (
+                                                <DeductionRow label="住民税" value={record.residentTax} />
+                                            )}
+                                            {(record.rentDeduction || 0) > 0 && (
+                                                <DeductionRow label="寮費・家賃" value={record.rentDeduction} />
+                                            )}
+                                            {(record.utilitiesDeduction || 0) > 0 && (
+                                                <DeductionRow label="光熱費" value={record.utilitiesDeduction} />
+                                            )}
+                                            {(record.mealDeduction || 0) > 0 && (
+                                                <DeductionRow label="食事代・弁当" value={record.mealDeduction} />
+                                            )}
+                                            {(record.advancePayment || 0) > 0 && (
+                                                <DeductionRow label="前借金返済" value={record.advancePayment} />
+                                            )}
                                             {(record.yearEndAdjustment || 0) !== 0 && (
                                                 <DeductionRow label="年末調整" value={record.yearEndAdjustment} />
                                             )}
-                                            <DeductionRow label="その他控除" value={record.otherDeductions} />
+                                            {((record.otherDeductions || 0) + missingDeductions) > 0 && (
+                                                <DeductionRow label="その他控除" value={(record.otherDeductions || 0) + missingDeductions} />
+                                            )}
                                             <div className="pt-2 border-t border-red-500/30 flex justify-between font-bold">
                                                 <span className="text-red-400">控除合計</span>
                                                 <span className="text-red-400">-{formatYen(totalDeductions)}</span>

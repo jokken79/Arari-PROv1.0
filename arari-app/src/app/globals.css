@@ -27,6 +27,44 @@
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
     --radius: 0.75rem;
+
+    /* Custom theme colors */
+    --glass-bg: rgba(0, 0, 0, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-card-bg: rgba(21, 21, 21, 0.8);
+    --glass-card-border: rgba(255, 255, 255, 0.05);
+    --body-gradient-1: rgba(6, 182, 212, 0.1);
+    --body-gradient-2: rgba(99, 102, 241, 0.05);
+  }
+
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+
+    /* Light mode custom colors */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-card-bg: rgba(255, 255, 255, 0.9);
+    --glass-card-border: rgba(0, 0, 0, 0.05);
+    --body-gradient-1: rgba(59, 130, 246, 0.05);
+    --body-gradient-2: rgba(99, 102, 241, 0.03);
   }
 }
 
@@ -36,22 +74,30 @@
   }
 
   body {
-    @apply bg-[#0a0a0a] text-foreground selection:bg-cyan-500/30;
+    @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     background-image:
-      radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.05) 0%, transparent 40%);
+      radial-gradient(circle at 50% 0%, var(--body-gradient-1) 0%, transparent 50%),
+      radial-gradient(circle at 100% 0%, var(--body-gradient-2) 0%, transparent 40%);
     background-attachment: fixed;
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl;
+    background-color: var(--glass-bg);
+    @apply backdrop-blur-xl shadow-2xl;
+    border: 1px solid var(--glass-border);
   }
 
   .glass-card {
-    @apply bg-[#151515]/80 backdrop-blur-md border border-white/5 hover:border-cyan-500/30 transition-colors duration-300;
+    background-color: var(--glass-card-bg);
+    @apply backdrop-blur-md transition-colors duration-300;
+    border: 1px solid var(--glass-card-border);
+  }
+
+  .glass-card:hover {
+    border-color: hsl(var(--primary) / 0.3);
   }
 
   .text-gradient {
@@ -61,9 +107,14 @@
   .text-gradient-gold {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500;
   }
+
+  /* Light mode specific text adjustments */
+  .light .text-gradient {
+    @apply from-blue-600 via-indigo-600 to-purple-600;
+  }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Dark Mode */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -74,7 +125,20 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+  @apply bg-slate-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-600;
+}
+
+/* Light mode scrollbar */
+.light ::-webkit-scrollbar-thumb {
+  @apply bg-slate-300;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
 }
 
 /* Number formatting for Japanese Yen */

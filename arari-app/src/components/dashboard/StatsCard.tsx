@@ -44,11 +44,11 @@ export function StatsCard({
   const TrendIcon = getTrendIcon()
 
   const variantStyles = {
-    default: 'glass-card hover:bg-[#1a1a1a]/90',
-    success: 'bg-gradient-to-br from-emerald-500/10 via-emerald-900/10 to-transparent border-emerald-500/20 hover:border-emerald-500/40 backdrop-blur-md',
-    warning: 'bg-gradient-to-br from-amber-500/10 via-amber-900/10 to-transparent border-amber-500/20 hover:border-amber-500/40 backdrop-blur-md',
-    danger: 'bg-gradient-to-br from-red-500/10 via-red-900/10 to-transparent border-red-500/20 hover:border-red-500/40 backdrop-blur-md',
-    gradient: 'bg-gradient-to-br from-cyan-600 via-blue-600 to-indigo-600 text-white border-0 shadow-[0_0_20px_rgba(6,182,212,0.3)]',
+    default: 'glass-card',
+    success: 'bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 backdrop-blur-md',
+    warning: 'bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 backdrop-blur-md',
+    danger: 'bg-red-500/10 border border-red-500/20 hover:border-red-500/40 backdrop-blur-md',
+    gradient: 'bg-gradient-to-br from-primary via-blue-600 to-indigo-600 text-white border-0 shadow-[0_0_20px_hsl(var(--primary)/0.3)]',
   }
 
   const iconStyles = {

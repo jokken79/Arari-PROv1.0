@@ -147,7 +147,7 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsExpanded(true)}
-                className="rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
+                className="rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
@@ -181,7 +181,7 @@ export function ProfitTrendChart({ data }: ProfitTrendChartProps) {
               <div className="flex items-center justify-between p-6 border-b border-white/10 shrink-0">
                 <div className="flex items-center gap-4">
                   <TrendingUp className="h-6 w-6 text-cyan-500" />
-                  <h2 className="text-2xl font-bold text-white">月別収益トレンド (詳細)</h2>
+                  <h2 className="text-2xl font-bold text-foreground">月別収益トレンド (詳細)</h2>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setIsExpanded(false)} className="rounded-full hover:bg-white/10 text-slate-400 hover:text-white">
                   <X className="h-6 w-6" />

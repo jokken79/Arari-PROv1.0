@@ -26,7 +26,7 @@ const CustomTooltip = ({ active, payload }: any) => {
     const data = payload[0].payload
     return (
       <div className="rounded-lg border border-white/10 bg-black/80 backdrop-blur-md p-4 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-        <p className="font-semibold text-white">{data.range}</p>
+        <p className="font-semibold text-foreground">{data.range}</p>
         <p className="text-sm text-slate-300">
           {data.count}名 ({data.percentage.toFixed(1)}%)
         </p>

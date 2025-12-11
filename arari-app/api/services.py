@@ -443,7 +443,7 @@ class PayrollService:
         """, (period,))
         stats = cursor.fetchone()
 
-        # Profit trend (last 6 periods)
+        # Profit trend (last 6 periods) - Sort properly handling Japanese period format
         cursor.execute("""
             SELECT
                 period,
@@ -453,7 +453,9 @@ class PayrollService:
                 AVG(profit_margin) as margin
             FROM payroll_records
             GROUP BY period
-            ORDER BY period DESC
+            ORDER BY 
+                CAST(SUBSTR(period, 1, 4) AS INTEGER) DESC,
+                CAST(REPLACE(REPLACE(SUBSTR(period, 6), '月', ''), '年', '') AS INTEGER) DESC
             LIMIT 6
         """)
         profit_trend = [dict(row) for row in cursor.fetchall()][::-1]  # Reverse for chronological order
