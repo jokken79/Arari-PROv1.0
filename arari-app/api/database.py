@@ -130,6 +130,7 @@ def init_db():
         ("gender", "TEXT"),              # 性別: M/F
         ("birth_date", "TEXT"),          # 生年月日: YYYY-MM-DD
         ("employee_type", "TEXT DEFAULT 'haken'"),  # 従業員タイプ: haken/ukeoi
+        ("termination_date", "TEXT"),    # 退社日: YYYY-MM-DD (resignation date)
     ]
 
     for col_name, col_type in employee_new_columns:

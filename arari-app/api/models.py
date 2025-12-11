@@ -23,6 +23,7 @@ class EmployeeBase(BaseModel):
     # NEW FIELDS - 2025-12-11
     gender: Optional[str] = Field(None, description="性別 (M=男性, F=女性)")
     birth_date: Optional[str] = Field(None, description="生年月日 (YYYY-MM-DD)")
+    termination_date: Optional[str] = Field(None, description="退社日 (YYYY-MM-DD)")
 
 class EmployeeCreate(EmployeeBase):
     pass

@@ -20,6 +20,8 @@ import {
   Calendar,
   Loader2,
   FileSpreadsheet,
+  AlertTriangle,
+  Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -66,6 +68,18 @@ const navigation = [
     href: '/reports',
     icon: FileText,
     description: '帳票出力',
+  },
+  {
+    name: 'アラート管理',
+    href: '/alerts',
+    icon: AlertTriangle,
+    description: '警告・通知',
+  },
+  {
+    name: '予算管理',
+    href: '/budgets',
+    icon: Wallet,
+    description: '予算vs実績',
   },
 ]
 

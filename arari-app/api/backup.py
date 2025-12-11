@@ -39,6 +39,47 @@ def calculate_checksum(file_path: Path) -> str:
     return hash_md5.hexdigest()
 
 
+def validate_backup_filename(filename: str, backup_dir: Path) -> Optional[Path]:
+    """
+    Validate backup filename to prevent path traversal attacks.
+    Returns the safe path if valid, None if invalid.
+
+    Security checks:
+    1. No path separators allowed in filename
+    2. No parent directory references (..)
+    3. Must end with .db extension
+    4. Resolved path must be within backup_dir
+    """
+    import re
+
+    # Reject filenames with path separators or parent references
+    if '/' in filename or '\\' in filename or '..' in filename:
+        return None
+
+    # Must be a .db file
+    if not filename.endswith('.db'):
+        return None
+
+    # Only allow safe characters: alphanumeric, underscore, hyphen, dot
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', filename):
+        return None
+
+    # Construct the path
+    backup_path = backup_dir / filename
+
+    # Ensure resolved path is within backup_dir (prevent symlink attacks)
+    try:
+        resolved_path = backup_path.resolve()
+        resolved_backup_dir = backup_dir.resolve()
+
+        if not str(resolved_path).startswith(str(resolved_backup_dir)):
+            return None
+
+        return backup_path
+    except Exception:
+        return None
+
+
 class BackupService:
     """Service for database backups"""
 
@@ -112,7 +153,11 @@ class BackupService:
 
     def restore_backup(self, backup_filename: str) -> Dict[str, Any]:
         """Restore from a backup"""
-        backup_path = self.backup_dir / backup_filename
+        # Validate filename to prevent path traversal attacks
+        backup_path = validate_backup_filename(backup_filename, self.backup_dir)
+
+        if backup_path is None:
+            return {"error": "Invalid backup filename"}
 
         if not backup_path.exists():
             return {"error": f"Backup not found: {backup_filename}"}
@@ -180,9 +225,10 @@ class BackupService:
 
     def get_backup_info(self, backup_filename: str) -> Optional[Dict[str, Any]]:
         """Get detailed info about a backup"""
-        backup_path = self.backup_dir / backup_filename
+        # Validate filename to prevent path traversal attacks
+        backup_path = validate_backup_filename(backup_filename, self.backup_dir)
 
-        if not backup_path.exists():
+        if backup_path is None or not backup_path.exists():
             return None
 
         metadata_path = backup_path.with_suffix(".json")
@@ -201,7 +247,11 @@ class BackupService:
 
     def verify_backup(self, backup_filename: str) -> Dict[str, Any]:
         """Verify backup integrity"""
-        backup_path = self.backup_dir / backup_filename
+        # Validate filename to prevent path traversal attacks
+        backup_path = validate_backup_filename(backup_filename, self.backup_dir)
+
+        if backup_path is None:
+            return {"valid": False, "error": "Invalid backup filename"}
 
         if not backup_path.exists():
             return {"valid": False, "error": "Backup not found"}
@@ -236,7 +286,12 @@ class BackupService:
 
     def delete_backup(self, backup_filename: str) -> Dict[str, Any]:
         """Delete a backup"""
-        backup_path = self.backup_dir / backup_filename
+        # Validate filename to prevent path traversal attacks
+        backup_path = validate_backup_filename(backup_filename, self.backup_dir)
+
+        if backup_path is None:
+            return {"error": "Invalid backup filename"}
+
         metadata_path = backup_path.with_suffix(".json")
 
         if not backup_path.exists():

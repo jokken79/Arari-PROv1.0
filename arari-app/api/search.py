@@ -115,9 +115,13 @@ class SearchService:
         else:
             sql += " ORDER BY e.employee_id"
 
-        # Pagination
+        # Pagination - Use parameterized queries to prevent SQL injection
+        # Validate bounds to prevent DoS via huge LIMIT values
+        page = max(1, min(page, 10000))  # Cap page at 10000
+        page_size = max(1, min(page_size, 500))  # Cap page_size at 500
         offset = (page - 1) * page_size
-        sql += f" LIMIT {page_size} OFFSET {offset}"
+        sql += " LIMIT ? OFFSET ?"
+        params.extend([page_size, offset])
 
         self.cursor.execute(sql, params)
         columns = [desc[0] for desc in self.cursor.description]
@@ -231,9 +235,13 @@ class SearchService:
         else:
             sql += " ORDER BY p.period DESC, p.employee_id"
 
-        # Pagination
+        # Pagination - Use parameterized queries to prevent SQL injection
+        # Validate bounds to prevent DoS via huge LIMIT values
+        page = max(1, min(page, 10000))  # Cap page at 10000
+        page_size = max(1, min(page_size, 500))  # Cap page_size at 500
         offset = (page - 1) * page_size
-        sql += f" LIMIT {page_size} OFFSET {offset}"
+        sql += " LIMIT ? OFFSET ?"
+        params.extend([page_size, offset])
 
         self.cursor.execute(sql, params)
         columns = [desc[0] for desc in self.cursor.description]

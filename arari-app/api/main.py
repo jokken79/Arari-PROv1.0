@@ -262,6 +262,7 @@ async def import_employees(
                     employee_type=emp.employee_type,
                     gender=emp.gender,
                     birth_date=emp.birth_date,
+                    termination_date=emp.termination_date,
                 )
                 
                 existing = service.get_employee(emp.employee_id)
@@ -382,6 +383,7 @@ async def upload_payroll_file(
                         employee_type=emp.employee_type,
                         gender=emp.gender,
                         birth_date=emp.birth_date,
+                        termination_date=emp.termination_date,
                     )
                     
                     # Try update first (if exists), then create
@@ -722,12 +724,12 @@ async def import_employees(
                         INSERT OR REPLACE INTO employees
                         (employee_id, name, name_kana, dispatch_company, department,
                          hourly_rate, billing_rate, status, hire_date, employee_type,
-                         gender, birth_date, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                         gender, birth_date, termination_date, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
                     """, (
                         emp.employee_id, emp.name, emp.name_kana, emp.dispatch_company, emp.department,
                         emp.hourly_rate, emp.billing_rate, emp.status, emp.hire_date, emp.employee_type,
-                        emp.gender, emp.birth_date
+                        emp.gender, emp.birth_date, emp.termination_date
                     ))
 
                     if existing:

@@ -26,6 +26,7 @@ class EmployeeRecord:
     # NEW FIELDS - 2025-12-11
     gender: Optional[str] = None          # 性別: 男/女 or M/F
     birth_date: Optional[str] = None      # 生年月日: Date of birth
+    termination_date: Optional[str] = None  # 退社日: Resignation/termination date
 
 
 class DBGenzaiXParser:
@@ -49,6 +50,7 @@ class DBGenzaiXParser:
         # NEW FIELDS - 2025-12-11
         'gender': ['gender', '性別', 'sex', '男女', '男/女'],
         'birth_date': ['birth_date', '生年月日', 'birthday', '誕生日', '生日', 'dob', 'date_of_birth'],
+        'termination_date': ['termination_date', '退社日', '退職日', 'resignation_date', 'end_date', '終了日', '離職日'],
     }
 
     # Active statuses (mapped to 'active')
@@ -152,6 +154,18 @@ class DBGenzaiXParser:
                         continue
 
                     # Build employee record
+                    # Determine status based on termination_date if not explicitly set
+                    termination_date = self._format_date(row_data.get('termination_date'))
+                    explicit_status = row_data.get('status')
+
+                    # If termination_date exists, employee is inactive
+                    if termination_date:
+                        status = 'inactive'
+                    elif explicit_status:
+                        status = self._map_status(explicit_status)
+                    else:
+                        status = 'active'
+
                     emp = EmployeeRecord(
                         employee_id=emp_id,
                         name=str(row_data.get('name', '')).strip() or f"Employee {emp_id}",
@@ -159,13 +173,14 @@ class DBGenzaiXParser:
                         hourly_rate=self._to_float(row_data.get('hourly_rate')),
                         billing_rate=self._to_float(row_data.get('billing_rate')),
                         dispatch_company=self._clean_value(row_data.get('dispatch_company')),
-                        status=self._map_status(row_data.get('status')),
+                        status=status,
                         hire_date=self._format_date(row_data.get('hire_date')),
                         department=self._clean_value(row_data.get('department')),
                         employee_type=self._detect_employee_type(row_data.get('billing_rate')),
                         # NEW FIELDS
                         gender=self._map_gender(row_data.get('gender')),
                         birth_date=self._format_date(row_data.get('birth_date')),
+                        termination_date=termination_date,
                     )
 
                     employees.append(emp)
