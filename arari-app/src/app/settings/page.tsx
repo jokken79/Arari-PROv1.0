@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils'
 import { syncApi } from '@/lib/api'
 
 // API base URL
+import { useAppStore } from '@/store/appStore'
 // API base URL - Force localhost:8765 for this environment
 const API_URL = 'http://localhost:8765'
 
@@ -111,6 +112,10 @@ export default function SettingsPage() {
       }
 
       setInsuranceSaveStatus({ success: true, message: '設定を保存しました' })
+
+      // Refresh global store settings
+      useAppStore.getState().loadSettings()
+
       setTimeout(() => setInsuranceSaveStatus(null), 3000)
     } catch (error) {
       setInsuranceSaveStatus({ success: false, message: '保存に失敗しました' })

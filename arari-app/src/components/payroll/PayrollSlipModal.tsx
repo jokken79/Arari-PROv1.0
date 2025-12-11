@@ -4,6 +4,7 @@ import { formatYen } from '@/lib/utils'
 import { PayrollRecord, Employee } from '@/types'
 import { X, ArrowLeft, Building2, Clock, Calendar, Briefcase, CreditCard, Calculator, TrendingUp, Coffee, Moon, Sun, Gift } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAppStore } from '@/store/appStore'
 
 interface PayrollSlipModalProps {
     isOpen: boolean
@@ -13,6 +14,8 @@ interface PayrollSlipModalProps {
 }
 
 export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollSlipModalProps) {
+    const { settings } = useAppStore()
+
     if (!record || !isOpen) return null
 
     // Calculate margin rate for display
@@ -20,11 +23,13 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
         ? (record.grossProfit / record.billingAmount) * 100
         : 0
 
-    // Get margin color based on Manufacturing dispatch standards (target 10-15%)
+    // Get margin color based on dynamic target margin
     const getMarginColor = (margin: number) => {
-        if (margin >= 10) return { text: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500', light: 'bg-emerald-50 dark:bg-emerald-900/20' }
-        if (margin >= 7) return { text: 'text-green-500', bg: 'bg-green-500', border: 'border-green-500', light: 'bg-green-50 dark:bg-green-900/20' }
-        if (margin >= 3) return { text: 'text-amber-500', bg: 'bg-amber-500', border: 'border-amber-500', light: 'bg-amber-50 dark:bg-amber-900/20' }
+        const target = settings.target_margin || 15
+
+        if (margin >= target) return { text: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500', light: 'bg-emerald-50 dark:bg-emerald-900/20' }
+        if (margin >= target - 3) return { text: 'text-green-500', bg: 'bg-green-500', border: 'border-green-500', light: 'bg-green-50 dark:bg-green-900/20' }
+        if (margin >= target - 7) return { text: 'text-amber-500', bg: 'bg-amber-500', border: 'border-amber-500', light: 'bg-amber-50 dark:bg-amber-900/20' }
         return { text: 'text-red-500', bg: 'bg-red-500', border: 'border-red-500', light: 'bg-red-50 dark:bg-red-900/20' }
     }
 
@@ -53,8 +58,15 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
     const companyHealthIns = record.socialInsurance || 0  // 健康保険（会社分）= 本人と同額
     const companyWelfarePension = record.welfarePension || 0  // 厚生年金（会社分）= 本人と同額
     const companySocialIns = record.companySocialInsurance || (companyHealthIns + companyWelfarePension)
-    const companyEmploymentIns = record.companyEmploymentInsurance || Math.round((record.grossSalary || 0) * 0.009)
-    const companyWorkersComp = record.companyWorkersComp || Math.round((record.grossSalary || 0) * 0.003)
+
+    // Use dynamic employment insurance rate (default 0.9%)
+    const empInsRate = settings.employment_insurance_rate || 0.009
+    const companyEmploymentIns = record.companyEmploymentInsurance || Math.round((record.grossSalary || 0) * empInsRate)
+
+    // Use dynamic workers comp rate (default 0.3%)
+    const workersCompRate = settings.workers_comp_rate || 0.003
+    const companyWorkersComp = record.companyWorkersComp || Math.round((record.grossSalary || 0) * workersCompRate)
+
     const totalCompanyBenefits = companySocialIns + companyEmploymentIns + companyWorkersComp
 
     // Format hours display
@@ -645,11 +657,11 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                     </div>
                                                 )}
                                                 <div className="flex justify-between text-purple-600/80 dark:text-purple-400/80">
-                                                    <span>雇用保険 (0.90%)</span>
+                                                    <span>雇用保険 ({(empInsRate * 100).toFixed(2)}%)</span>
                                                     <span className="font-mono">{formatYen(companyEmploymentIns)}</span>
                                                 </div>
                                                 <div className="flex justify-between text-purple-600/80 dark:text-purple-400/80">
-                                                    <span>労災保険 (0.3%)</span>
+                                                    <span>労災保険 ({(workersCompRate * 100).toFixed(1)}%)</span>
                                                     <span className="font-mono">{formatYen(companyWorkersComp)}</span>
                                                 </div>
                                             </div>
@@ -682,8 +694,8 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                         <div className="space-y-1">
                                             <div className="flex justify-between text-xs text-slate-600 dark:text-slate-300">
                                                 <span>0%</span>
-                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">目標: 10%</span>
-                                                <span>20%</span>
+                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">目標: {settings.target_margin || 15}%</span>
+                                                <span>{(settings.target_margin || 15) * 2}%</span>
                                             </div>
                                             <div className="h-3 bg-slate-300 dark:bg-slate-600 rounded-full overflow-hidden relative">
                                                 {/* Target line */}
@@ -691,14 +703,14 @@ export function PayrollSlipModal({ isOpen, onClose, record, employee }: PayrollS
                                                 {/* Current value */}
                                                 <div
                                                     className={`h-full ${marginColor.bg} transition-all duration-500`}
-                                                    style={{ width: `${Math.min(marginRate / 20 * 100, 100)}%` }}
+                                                    style={{ width: `${Math.min(marginRate / ((settings.target_margin || 15) * 2) * 100, 100)}%` }}
                                                 />
                                             </div>
                                         </div>
                                         <p className="text-center text-xs mt-2 text-slate-600 dark:text-slate-300">
-                                            {marginRate >= 10
+                                            {marginRate >= (settings.target_margin || 15)
                                                 ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">目標達成 ✓</span>
-                                                : <span className="text-amber-600 dark:text-amber-400 font-semibold">目標まで: {(10 - marginRate).toFixed(1)}%</span>
+                                                : <span className="text-amber-600 dark:text-amber-400 font-semibold">目標まで: {((settings.target_margin || 15) - marginRate).toFixed(1)}%</span>
                                             }
                                         </p>
                                     </div>

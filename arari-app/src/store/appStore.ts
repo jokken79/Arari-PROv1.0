@@ -12,8 +12,22 @@ import type {
   Theme
 } from '@/types'
 // Sample data removed - always use backend
-import { employeeApi, payrollApi, statisticsApi } from '@/lib/api'
+import { employeeApi, payrollApi, statisticsApi, settingsApi } from '@/lib/api'
 import { sortPeriodsAscending, sortPeriodsDescending } from '@/lib/utils'
+
+export interface AppSettings {
+  employment_insurance_rate: number
+  workers_comp_rate: number
+  fiscal_year: number
+  target_margin: number
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  employment_insurance_rate: 0.009,
+  workers_comp_rate: 0.003,
+  fiscal_year: 2025,
+  target_margin: 15,
+}
 
 // Generate dashboard stats from local data (fallback)
 function generateDashboardStats(employees: Employee[], payrollRecords: PayrollRecord[]): DashboardStats {
@@ -139,6 +153,9 @@ interface AppState {
   companySummaries: CompanySummary[]
   dashboardStats: DashboardStats | null
 
+  // Settings
+  settings: AppSettings
+
   // Filters
   filters: FilterOptions
   setFilters: (filters: FilterOptions) => void
@@ -159,6 +176,7 @@ interface AppState {
   // Actions
   loadSampleData: () => void
   loadDataFromBackend: () => Promise<void>
+  loadSettings: () => Promise<void>
   addPayrollRecords: (records: PayrollRecord[]) => void
   updateEmployee: (employee: Employee) => void
   deleteEmployee: (id: string) => void
@@ -180,6 +198,7 @@ export const useAppStore = create<AppState>()(
       monthlySummaries: [],
       companySummaries: [],
       dashboardStats: null,
+      settings: DEFAULT_SETTINGS,
 
       // Filters
       filters: {},
@@ -199,6 +218,24 @@ export const useAppStore = create<AppState>()(
       useBackend: true,
 
       // Actions
+      loadSettings: async () => {
+        try {
+          const response = await settingsApi.getAll()
+          if (response.data) {
+            const newSettings = { ...DEFAULT_SETTINGS }
+            response.data.forEach(item => {
+              if (item.key in newSettings) {
+                // @ts-ignore
+                newSettings[item.key as keyof AppSettings] = parseFloat(item.value)
+              }
+            })
+            set({ settings: newSettings })
+          }
+        } catch (error) {
+          console.error('Failed to load settings:', error)
+        }
+      },
+
       loadSampleData: async () => {
         // Load from backend only - no sample data fallback
         try {
@@ -239,7 +276,8 @@ export const useAppStore = create<AppState>()(
             employeeApi.getAll(),
             payrollApi.getAll(),
             payrollApi.getPeriods(),
-            statisticsApi.getDashboard()
+            statisticsApi.getDashboard(),
+            get().loadSettings(),  // Load settings in parallel
           ])
 
           // Check for errors

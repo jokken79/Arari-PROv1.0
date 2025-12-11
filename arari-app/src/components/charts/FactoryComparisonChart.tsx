@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatYen, formatPercent } from '@/lib/utils'
 import { Factory, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store/appStore'
 
 interface FactoryData {
   companyName: string
@@ -30,17 +31,18 @@ interface FactoryComparisonChartProps {
   data: FactoryData[]
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, targetMargin }: any) => {
   if (active && payload && payload.length) {
     const factoryData = payload[0]?.payload
     if (!factoryData) return null
 
+    const target = targetMargin || 15
     const isPositiveProfit = factoryData.profit >= 0
-    const marginColor = factoryData.margin >= 10
+    const marginColor = factoryData.margin >= target
       ? 'text-emerald-500'
-      : factoryData.margin >= 7
+      : factoryData.margin >= target - 3
         ? 'text-green-500'
-        : factoryData.margin >= 3
+        : factoryData.margin >= target - 7
           ? 'text-amber-500'
           : 'text-red-500'
 
@@ -119,6 +121,9 @@ const CustomLegend = ({ payload }: any) => {
 }
 
 export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
+  const { settings } = useAppStore()
+  const target = settings.target_margin || 15
+
   // Sort by profit for better visualization
   const sortedData = [...data].sort((a, b) => b.profit - a.profit)
 
@@ -162,7 +167,7 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
                 <p className="text-xs text-muted-foreground">平均マージン</p>
                 <p className={cn(
                   "text-lg font-bold",
-                  avgMargin >= 10 ? "text-emerald-500" : avgMargin >= 7 ? "text-green-500" : avgMargin >= 3 ? "text-amber-500" : "text-red-500"
+                  avgMargin >= target ? "text-emerald-500" : avgMargin >= target - 3 ? "text-green-500" : avgMargin >= target - 7 ? "text-amber-500" : "text-red-500"
                 )}>
                   {formatPercent(avgMargin)}
                 </p>
@@ -209,7 +214,7 @@ export function FactoryComparisonChart({ data }: FactoryComparisonChartProps) {
                   tickLine={false}
                   axisLine={false}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.1)' }} />
+                <Tooltip content={<CustomTooltip targetMargin={target} />} cursor={{ fill: 'hsl(var(--muted)/0.1)' }} />
                 <Legend content={<CustomLegend />} />
                 <Bar
                   dataKey="revenue"

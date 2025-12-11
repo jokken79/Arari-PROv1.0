@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatYen, formatPercent, cn } from '@/lib/utils'
 import { Table, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useAppStore } from '@/store/appStore'
 
 interface MonthlyData {
   period: string
@@ -19,6 +20,7 @@ interface MonthlySummaryTableProps {
 }
 
 export function MonthlySummaryTable({ data }: MonthlySummaryTableProps) {
+  const { settings } = useAppStore()
   // Sort data descending by date (YYYY年M月 -> YYYYMM)
   // This fixes the issue where "2025年10月" appears after "2025年1月" in string sort
   const sortedData = [...data].sort((a, b) => {
@@ -71,14 +73,16 @@ export function MonthlySummaryTable({ data }: MonthlySummaryTableProps) {
   }
 
   const MarginBadge = ({ margin }: { margin: number }) => {
-    // Manufacturing dispatch standards: target is 10-15%
-    const colorClass = margin >= 10
-      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'  // Excellent (>10%)
-      : margin >= 7
-        ? 'bg-green-500/10 text-green-500 border-green-500/30'      // Good (7-10%)
-        : margin >= 3
-          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'    // Warning (3-7%)
-          : 'bg-red-500/10 text-red-500 border-red-500/30'          // Critical (<3%)
+    // Manufacturing dispatch standards: dynamic target
+    const target = settings.target_margin || 15
+
+    const colorClass = margin >= target
+      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'  // Excellent
+      : margin >= target - 3
+        ? 'bg-green-500/10 text-green-500 border-green-500/30'      // Good
+        : margin >= target - 7
+          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'    // Warning
+          : 'bg-red-500/10 text-red-500 border-red-500/30'          // Critical
 
     return (
       <span className={cn(

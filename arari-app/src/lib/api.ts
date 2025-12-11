@@ -143,6 +143,14 @@ export const syncApi = {
   },
 }
 
+// ============== Settings API ==============
+
+export const settingsApi = {
+  getAll: async () => {
+    return fetchApi<{ key: string; value: string }[]>('/api/settings')
+  },
+}
+
 // ============== Upload API ==============
 
 export const uploadApi = {
