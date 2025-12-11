@@ -196,6 +196,67 @@ def init_db():
 
     conn.commit()
 
+    # ================================================================
+    # INITIALIZE AGENT TABLES
+    # ================================================================
+
+    # Import and initialize all agent tables
+    try:
+        from auth import init_auth_tables
+        init_auth_tables(conn)
+        print("[OK] Auth tables initialized")
+    except Exception as e:
+        print(f"[WARN] Auth tables: {e}")
+
+    try:
+        from alerts import init_alerts_tables
+        init_alerts_tables(conn)
+        print("[OK] Alerts tables initialized")
+    except Exception as e:
+        print(f"[WARN] Alerts tables: {e}")
+
+    try:
+        from audit import init_audit_tables
+        init_audit_tables(conn)
+        print("[OK] Audit tables initialized")
+    except Exception as e:
+        print(f"[WARN] Audit tables: {e}")
+
+    try:
+        from reports import init_reports_tables
+        init_reports_tables(conn)
+        print("[OK] Reports tables initialized")
+    except Exception as e:
+        print(f"[WARN] Reports tables: {e}")
+
+    try:
+        from budget import init_budget_tables
+        init_budget_tables(conn)
+        print("[OK] Budget tables initialized")
+    except Exception as e:
+        print(f"[WARN] Budget tables: {e}")
+
+    try:
+        from notifications import init_notification_tables
+        init_notification_tables(conn)
+        print("[OK] Notifications tables initialized")
+    except Exception as e:
+        print(f"[WARN] Notifications tables: {e}")
+
+    try:
+        from cache import init_cache_tables
+        init_cache_tables(conn)
+        print("[OK] Cache tables initialized")
+    except Exception as e:
+        print(f"[WARN] Cache tables: {e}")
+
+    try:
+        from backup import init_backup_system
+        init_backup_system()
+        print("[OK] Backup system initialized")
+    except Exception as e:
+        print(f"[WARN] Backup system: {e}")
+
     # NO sample data - start with clean database
     # Users will upload their own payroll files
 
