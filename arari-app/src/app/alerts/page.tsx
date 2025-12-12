@@ -160,12 +160,12 @@ export default function AlertsPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={fetchAlerts} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <Button variant="outline" onClick={fetchAlerts} disabled={loading} aria-label="アラート一覧を更新">
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                 更新
               </Button>
-              <Button onClick={scanForAlerts} disabled={loading}>
-                <Bell className="h-4 w-4 mr-2" />
+              <Button onClick={scanForAlerts} disabled={loading} aria-label="新しいアラートをスキャン">
+                <Bell className="h-4 w-4 mr-2" aria-hidden="true" />
                 アラートスキャン
               </Button>
             </div>
@@ -225,6 +225,8 @@ export default function AlertsPage() {
               variant={filter === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter('all')}
+              aria-label="すべてのアラートを表示"
+              aria-pressed={filter === 'all'}
             >
               すべて
             </Button>
@@ -232,6 +234,8 @@ export default function AlertsPage() {
               variant={filter === 'active' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter('active')}
+              aria-label="アクティブなアラートのみ表示"
+              aria-pressed={filter === 'active'}
             >
               アクティブ
             </Button>
@@ -239,6 +243,8 @@ export default function AlertsPage() {
               variant={filter === 'resolved' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter('resolved')}
+              aria-label="解決済みアラートのみ表示"
+              aria-pressed={filter === 'resolved'}
             >
               解決済み
             </Button>
@@ -333,8 +339,9 @@ export default function AlertsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => resolveAlert(alert.id)}
+                              aria-label={`アラート「${alert.message}」を解決済みとしてマーク`}
                             >
-                              <CheckCircle className="h-4 w-4 mr-1" />
+                              <CheckCircle className="h-4 w-4 mr-1" aria-hidden="true" />
                               解決
                             </Button>
                           )}

@@ -186,12 +186,12 @@ export default function BudgetsPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={fetchBudgets} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <Button variant="outline" onClick={fetchBudgets} disabled={loading} aria-label="予算データを更新">
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
                 更新
               </Button>
-              <Button onClick={() => setShowCreateForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button onClick={() => setShowCreateForm(true)} aria-label="新規予算を作成">
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                 予算作成
               </Button>
             </div>
@@ -258,6 +258,7 @@ export default function BudgetsPage() {
                         className="w-full p-2 border rounded-md bg-background"
                         value={formData.period}
                         onChange={e => setFormData({ ...formData, period: e.target.value })}
+                        aria-label="予算期間を選択"
                       >
                         <option value="">選択...</option>
                         {availablePeriods.map(p => (
@@ -271,6 +272,7 @@ export default function BudgetsPage() {
                         className="w-full p-2 border rounded-md bg-background"
                         value={formData.entity_type}
                         onChange={e => setFormData({ ...formData, entity_type: e.target.value })}
+                        aria-label="予算対象タイプを選択"
                       >
                         <option value="company">会社全体</option>
                         <option value="dispatch_company">派遣先</option>
@@ -283,6 +285,7 @@ export default function BudgetsPage() {
                         value={formData.entity_id}
                         onChange={e => setFormData({ ...formData, entity_id: e.target.value })}
                         placeholder="ALL または 特定ID"
+                        aria-label="予算対象ID"
                       />
                     </div>
                     <div>
@@ -322,11 +325,11 @@ export default function BudgetsPage() {
                     />
                   </div>
                   <div className="flex gap-2 mt-6">
-                    <Button onClick={createBudget}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
+                    <Button onClick={createBudget} aria-label="予算を保存">
+                      <CheckCircle className="h-4 w-4 mr-2" aria-hidden="true" />
                       保存
                     </Button>
-                    <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                    <Button variant="outline" onClick={() => setShowCreateForm(false)} aria-label="予算作成をキャンセル">
                       キャンセル
                     </Button>
                   </div>
@@ -444,15 +447,15 @@ export default function BudgetsPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full" role="table" aria-label="登録済み予算一覧">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 px-4">期間</th>
-                        <th className="text-left py-2 px-4">対象</th>
-                        <th className="text-right py-2 px-4">売上予算</th>
-                        <th className="text-right py-2 px-4">コスト予算</th>
-                        <th className="text-right py-2 px-4">目標マージン</th>
-                        <th className="text-left py-2 px-4">メモ</th>
+                        <th scope="col" className="text-left py-2 px-4">期間</th>
+                        <th scope="col" className="text-left py-2 px-4">対象</th>
+                        <th scope="col" className="text-right py-2 px-4">売上予算</th>
+                        <th scope="col" className="text-right py-2 px-4">コスト予算</th>
+                        <th scope="col" className="text-right py-2 px-4">目標マージン</th>
+                        <th scope="col" className="text-left py-2 px-4">メモ</th>
                       </tr>
                     </thead>
                     <tbody>

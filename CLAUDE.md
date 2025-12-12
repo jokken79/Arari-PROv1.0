@@ -1193,5 +1193,224 @@ const sortedData = useMemo(() =>
 
 ---
 
-**Última actualización**: 2025-12-11 (Refactorización Phase 3)
-**Estado**: Sistema optimizado con PayrollSlipModal dividido en sub-componentes y charts con useMemo para mejor rendimiento
+**Última actualización**: 2025-12-12 (Phase 4 - Accessibility, Server Components, TanStack Query)
+**Estado**: Sistema completamente modernizado con accesibilidad WCAG 2.1 AA, Server Components, y TanStack Query
+
+---
+
+### 2025-12-12: MODERNIZACIÓN COMPLETA (Fase 4)
+
+#### 1. Accesibilidad Completa (WCAG 2.1 AA)
+
+Se agregaron aria-labels a todas las páginas del sistema:
+
+| Página | Mejoras |
+|--------|---------|
+| `page.tsx` (Dashboard) | aria-labels en cards, botones, tablas |
+| `alerts/page.tsx` | aria-labels en filtros, botones de acción |
+| `budgets/page.tsx` | aria-labels en formularios, tablas |
+| `companies/page.tsx` | aria-labels en lista de empresas |
+| `employees/page.tsx` | aria-labels en búsqueda, filtros, tabla |
+| `monthly/page.tsx` | aria-labels en selector de período |
+| `payroll/page.tsx` | aria-labels en tabla de nóminas |
+| `reports/page.tsx` | aria-labels en generador de reportes |
+| `settings/page.tsx` | aria-labels en formularios de config |
+| `templates/page.tsx` | aria-labels en lista de templates |
+
+**Componentes actualizados:**
+- `EmployeeTable.tsx` - Tabla accesible con scope="col", aria-label en botones
+- `FileUploader.tsx` - Drop zone accesible, aria-describedby para instrucciones
+
+**Total**: 60+ aria-labels, 30+ aria-hidden para iconos decorativos
+
+---
+
+#### 2. Server Components (Next.js 14)
+
+Componentes convertidos a Server Components (sin 'use client'):
+
+| Archivo | Tipo | Razón |
+|---------|------|-------|
+| `PayrollSlipHelpers.tsx` | Server Component | Solo renderiza UI, no usa hooks |
+| `SalaryDetailsColumn.tsx` | Server Component | Cálculos puros, no usa hooks |
+
+**48 archivos permanecen como Client Components** porque usan:
+- `useState`, `useEffect`, `useMemo`
+- Framer Motion animations
+- Event handlers (onClick, onChange)
+- Browser APIs
+
+---
+
+#### 3. TanStack Query (Server State Management)
+
+**Paquetes instalados:**
+```json
+"@tanstack/react-query": "^5.62.8",
+"@tanstack/react-query-devtools": "^5.62.8"
+```
+
+**Estructura creada:**
+
+```
+arari-app/src/
+├── providers/
+│   └── QueryProvider.tsx       # QueryClient provider
+├── hooks/
+│   ├── index.ts               # Exports centralizados
+│   ├── useEmployees.ts        # Hooks para empleados
+│   ├── usePayroll.ts          # Hooks para nóminas
+│   ├── useStatistics.ts       # Hooks para estadísticas
+│   └── useCompanies.ts        # Hooks para empresas
+```
+
+**Hooks disponibles:**
+
+```tsx
+// useEmployees.ts
+useEmployees(filters?)           // Lista empleados con filtros
+useEmployee(id)                  // Empleado por ID
+useCreateEmployee()              // Mutation crear
+useUpdateEmployee()              // Mutation actualizar
+useDeleteEmployee()              // Mutation eliminar
+
+// usePayroll.ts
+usePayrollRecords(employeeId?, period?)  // Lista nóminas
+usePayrollRecord(employeeId, period)     // Nómina específica
+useUploadPayroll()                       // Mutation subir Excel
+
+// useStatistics.ts
+useStatistics()                  // Estadísticas generales
+useDashboardStats()              // Stats del dashboard
+useMonthlyTrend(months?)         // Tendencia mensual
+
+// useCompanies.ts
+useCompanies()                   // Lista de empresas/派遣先
+useCompanyStats(companyName)     // Stats por empresa
+```
+
+**Beneficios:**
+- Caching automático de datos
+- Revalidación en background
+- Estados loading/error integrados
+- Optimistic updates
+- Devtools para debugging
+
+**Uso ejemplo:**
+```tsx
+import { useEmployees } from '@/hooks'
+
+function EmployeesPage() {
+  const { data, isLoading, error } = useEmployees({ status: 'active' })
+
+  if (isLoading) return <Loading />
+  if (error) return <Error message={error.message} />
+
+  return <EmployeeTable data={data} />
+}
+```
+
+---
+
+#### 4. Migración de employees/page.tsx
+
+La página de empleados fue migrada completamente a TanStack Query:
+
+**Antes:**
+```tsx
+const [employees, setEmployees] = useState([])
+const [loading, setLoading] = useState(true)
+
+useEffect(() => {
+  fetch('http://localhost:8000/api/employees')
+    .then(res => res.json())
+    .then(data => {
+      setEmployees(data)
+      setLoading(false)
+    })
+}, [])
+```
+
+**Después:**
+```tsx
+const { data: employees, isLoading, error } = useEmployees()
+// Caching, revalidación, y error handling automáticos
+```
+
+---
+
+#### 5. Documentación Creada
+
+| Archivo | Contenido |
+|---------|-----------|
+| `TANSTACK_QUERY.md` | Guía completa de uso de TanStack Query |
+| `TANSTACK_QUERY_IMPLEMENTATION_SUMMARY.md` | Resumen de implementación |
+
+---
+
+#### 6. Layout Actualizado
+
+`layout.tsx` ahora incluye:
+- `QueryProvider` para TanStack Query
+- `ToastProvider` para notificaciones
+- Skip-to-main link para accesibilidad
+
+```tsx
+<QueryProvider>
+  <ToastProvider>
+    <a href="#main-content" className="sr-only focus:not-sr-only">
+      メインコンテンツへスキップ
+    </a>
+    {children}
+  </ToastProvider>
+</QueryProvider>
+```
+
+---
+
+#### 7. Archivos Creados/Modificados (Fase 4)
+
+| Archivo | Tipo | Cambio |
+|---------|------|--------|
+| `src/providers/QueryProvider.tsx` | NUEVO | Provider de TanStack Query |
+| `src/hooks/useEmployees.ts` | NUEVO | Hooks para empleados |
+| `src/hooks/usePayroll.ts` | NUEVO | Hooks para nóminas |
+| `src/hooks/useStatistics.ts` | NUEVO | Hooks para estadísticas |
+| `src/hooks/useCompanies.ts` | NUEVO | Hooks para empresas |
+| `src/hooks/index.ts` | NUEVO | Exports centralizados |
+| `TANSTACK_QUERY.md` | NUEVO | Documentación |
+| `TANSTACK_QUERY_IMPLEMENTATION_SUMMARY.md` | NUEVO | Resumen |
+| `src/app/layout.tsx` | MODIFICADO | QueryProvider agregado |
+| `src/app/employees/page.tsx` | MODIFICADO | Migrado a TanStack Query |
+| 12 páginas | MODIFICADO | Aria-labels agregados |
+| `EmployeeTable.tsx` | MODIFICADO | Accesibilidad mejorada |
+| `FileUploader.tsx` | MODIFICADO | Accesibilidad mejorada |
+| `PayrollSlipHelpers.tsx` | MODIFICADO | Server Component |
+| `SalaryDetailsColumn.tsx` | MODIFICADO | Server Component |
+| `package.json` | MODIFICADO | TanStack Query deps |
+
+---
+
+#### 8. Tests Realizados
+
+```bash
+npm install    # ✅ Success
+npm run build  # ✅ Success (17 páginas generadas)
+npm run lint   # ✅ Passed (2 warnings menores)
+```
+
+---
+
+#### 9. Estado del Stack Técnico (Actualizado)
+
+| Tecnología | Versión | Uso |
+|------------|---------|-----|
+| Next.js | 14.2.15 | Framework |
+| React | 18 | UI Library |
+| TypeScript | 5.x | Tipado |
+| TanStack Query | 5.62.8 | Server State |
+| Zustand | 4.x | Client State |
+| Recharts | 2.x | Charts |
+| Framer Motion | 11.x | Animations |
+| Tailwind CSS | 3.x | Styling |
+| react-hot-toast | 2.4.1 | Notifications |

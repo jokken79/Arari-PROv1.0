@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/ui/theme-provider'
 import { ToastProvider } from '@/components/ui/toast-provider'
+import { QueryProvider } from '@/providers/QueryProvider'
 
 export const metadata: Metadata = {
   title: '粗利 PRO v2.0 - 利益管理システム',
@@ -25,8 +26,10 @@ export default function RootLayout({
           メインコンテンツへスキップ
         </a>
         <ThemeProvider defaultTheme="dark" storageKey="arari-pro-theme">
-          {children}
-          <ToastProvider />
+          <QueryProvider>
+            {children}
+            <ToastProvider />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

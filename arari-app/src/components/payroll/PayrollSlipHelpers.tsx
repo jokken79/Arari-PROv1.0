@@ -1,10 +1,11 @@
-'use client'
-
 import { formatYen } from '@/lib/utils'
 
 /**
  * Helper Components for PayrollSlipModal
  * Extracted for better code organization and reusability
+ *
+ * NOTE: This file doesn't use any client-side features (hooks, event handlers, etc.)
+ * so it can be a Server Component. It's imported by Client Components which is fine.
  */
 
 // DetailRow - Used in 支給の部 section

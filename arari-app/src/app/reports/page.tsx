@@ -235,6 +235,7 @@ export default function ReportsPage() {
                           onClick={() => handleGenerate(report.id)}
                           disabled={isGenerating}
                           size="sm"
+                          aria-label={`${report.title}をダウンロード`}
                         >
                           {isGenerating ? (
                             <>
@@ -282,6 +283,7 @@ export default function ReportsPage() {
                     size="lg"
                     onClick={handleExportAll}
                     disabled={generating === 'export-all'}
+                    aria-label="全データをエクスポート"
                   >
                     {generating === 'export-all' ? (
                       <>
