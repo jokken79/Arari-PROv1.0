@@ -99,7 +99,7 @@ export default function BudgetsPage() {
 
   const fetchComparisons = async (period: string) => {
     try {
-      const response = await fetch(`${API_URL}/api/budgets/compare?period=${encodeURIComponent(period)}`)
+      const response = await fetch(`${API_URL}/api/budgets/compare/${encodeURIComponent(period)}`)
       if (response.ok) {
         const data = await response.json()
         setComparisons(data.comparisons || [])

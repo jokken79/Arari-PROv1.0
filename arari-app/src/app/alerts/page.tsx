@@ -81,9 +81,12 @@ export default function AlertsPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (filter !== 'all') {
-        params.append('active_only', filter === 'active' ? 'true' : 'false')
+      if (filter === 'active') {
+        params.append('is_resolved', 'false')
+      } else if (filter === 'resolved') {
+        params.append('is_resolved', 'true')
       }
+      // filter === 'all' -> no is_resolved param (returns all)
       if (severityFilter) {
         params.append('severity', severityFilter)
       }
@@ -103,7 +106,7 @@ export default function AlertsPage() {
   const resolveAlert = async (alertId: number) => {
     try {
       const response = await fetch(`${API_URL}/api/alerts/${alertId}/resolve`, {
-        method: 'POST',
+        method: 'PUT',
       })
       if (response.ok) {
         fetchAlerts()
